@@ -46,6 +46,7 @@ export default function App() {
 
         {/* Links - mobile dropdown */}
        {/* Links - mobile fullscreen overlay */}
+       
 {menuOpen && (
   <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex flex-col justify-center items-center gap-8 text-2xl">
 
@@ -62,7 +63,7 @@ export default function App() {
     <a href="#sobre" onClick={() => setMenuOpen(false)} className="hover:text-gray-300">Sobre Nós</a>
     <a href="#servicos" onClick={() => setMenuOpen(false)} className="hover:text-gray-300">Serviços</a>
     <a href="#contactos" onClick={() => setMenuOpen(false)} className="hover:text-gray-300">Contactos</a>
-    
+
   </div>
 )}
 
