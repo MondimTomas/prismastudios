@@ -38,7 +38,7 @@ export default function App() {
           {/* Links - desktop */}
           <ul className="hidden md:flex gap-8 text-sm uppercase">
             <li><a href="#portfolio" className="hover:text-gray-300">Portfólio</a></li>
-            <li><a href="#sobre" className="hover:text-gray-300">Sobre Nós</a></li>
+            <li><a href="#sobre" className="hover:text-gray-300">Sobre</a></li>
             <li><a href="#servicos" className="hover:text-gray-300">Serviços</a></li>
             <li><a href="#contactos" className="hover:text-gray-300">Contactos</a></li>
           </ul>
