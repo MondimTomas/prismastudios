@@ -62,6 +62,7 @@ export default function App() {
     <a href="#sobre" onClick={() => setMenuOpen(false)} className="hover:text-gray-300">Sobre Nós</a>
     <a href="#servicos" onClick={() => setMenuOpen(false)} className="hover:text-gray-300">Serviços</a>
     <a href="#contactos" onClick={() => setMenuOpen(false)} className="hover:text-gray-300">Contactos</a>
+    
   </div>
 )}
 
