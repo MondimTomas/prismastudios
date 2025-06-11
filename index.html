@@ -2,12 +2,52 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
+    <title>Prisma Studios</title>
   </head>
   <body>
     <div id="root"></div>
+
+    <!-- Efeito de distorção -->
+<svg style="display: none;">
+  <filter id="wobble">
+    <feTurbulence
+      id="turbulence"
+      type="fractalNoise"
+      baseFrequency="0.02"
+      numOctaves="2"
+      seed="223"
+      result="turbulence"
+    />
+    <feDisplacementMap
+      in="SourceGraphic"
+      in2="turbulence"
+      scale="6"
+      xChannelSelector="R"
+      yChannelSelector="G"
+    />
+  </filter>
+</svg>
+
+<script>
+  const turbulence = document.getElementById('turbulence');
+ let baseFreq = 0.023;
+let direction = 1;
+
+function animateTurbulence() {
+  baseFreq += 0.0002 * direction;
+  if (baseFreq > 0.025 || baseFreq < 0.021) direction *= -1;
+  turbulence.setAttribute('baseFrequency', baseFreq.toFixed(5));
+  requestAnimationFrame(animateTurbulence);
+}
+
+
+  animateTurbulence();
+</script>
+
+
+    <!-- React entra aqui -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
