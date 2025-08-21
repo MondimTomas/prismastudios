@@ -94,5 +94,13 @@ body {
   .hero-video { clip-path: inset(3% 0 3% 0); }
 }
 
+/* Esconde scrollbars mas mantém scroll funcional */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE/Edge */
+  scrollbar-width: none;     /* Firefox */
+}
 
 
