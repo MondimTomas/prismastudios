@@ -1,10 +1,47 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App.jsx'
-import './index.css' 
+import React, { useState } from "react";
+import ReactDOM from "react-dom/client";
+import "./index.css";
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-)
+import { NAV_ITEMS } from "./navItems";
+import Navbar from "./components/Navbar";
+import MobileMenu from "./components/MobileMenu";
+import PortfolioSection from "./components/PortfolioSection";
+import Footer from "./components/Footer";
+import BackgroundVideo from "./components/BackgroundVideo";
+import HeroContent from "./components/HeroContent";
+import AboutSection from "./components/AboutSection";
+
+function App() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  return (
+    <div className="relative w-full min-h-[100svh] overflow-hidden text-white bg-black">
+    {/* HERO */}
+    <div className="relative w-full h-[100svh]">
+      <BackgroundVideo />
+      <HeroContent />
+      <div className="absolute inset-0 z-30 flex flex-col justify-between">
+        <Navbar onOpenMenu={() => setMenuOpen(true)} navItems={NAV_ITEMS} />
+        <div className="flex justify-center mb-8 animate-bounce">
+          <span className="text-3xl">↓</span>
+        </div>
+      </div>
+      <MobileMenu open={menuOpen} onClose={() => setMenuOpen(false)} navItems={NAV_ITEMS} />
+    </div>
+  
+    {/* ⬇️ About/Manifesto aqui, antes do portfólio */}
+    <AboutSection />
+  
+    <PortfolioSection />
+      <section id="sobre" className="min-h-[40vh] bg-[#EBEBEB]" />
+      <section id="servicos" className="min-h-[40vh] bg-[#EBEBEB]" />
+      <section id="estudio" className="min-h-[40vh] bg-[#EBEBEB]" />
+      <section id="aluguer" className="min-h-[40vh] bg-[#EBEBEB]" />
+      <section id="blog" className="min-h-[40vh] bg-[#EBEBEB]" />
+      <section id="contactos" className="min-h-[40vh] bg-[#EBEBEB]" />
+      <Footer navItems={NAV_ITEMS} />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
