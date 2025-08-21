@@ -57,5 +57,42 @@ html, body, #root {
   animation: float3 4s ease-in-out infinite;
 }
 
+html { scroll-behavior: smooth; }
+
+
+
+/* Evita cortes fixos e adapta o framing ao ratio do ecrã */
+
+/* Paisagem (largura >= altura): dá para cortar um pouco em cima/baixo */
+@media (min-aspect-ratio: 16/9) {
+  .hero-video {
+    clip-path: inset(12% 0 12% 0);
+  }
+}
+
+/* Retrato (altura > largura): corta muito menos para não “encolher” */
+@media (max-aspect-ratio: 16/9) {
+  .hero-video {
+    clip-path: inset(4% 0 4% 0);
+  }
+}
+html, body, #root {
+  height: 100%;
+}
+body {
+  margin: 0;            /* remove a moldura cinzenta */
+  background: #000;     /* se algo “vazar”, fica preto e não cinzento */
+}
+
+/* Desktop/paisagem: recorta ~8% em cima e baixo */
+@media (min-aspect-ratio: 16/9) {
+  .hero-video { clip-path: inset(8% 0 8% 0); }
+}
+
+/* Retrato/estreito: recorta menos para não “comer” demasiado conteúdo */
+@media (max-aspect-ratio: 16/9) {
+  .hero-video { clip-path: inset(3% 0 3% 0); }
+}
+
 
 
