@@ -6,12 +6,6 @@ const TABS = [
   { key: "foto",  label: "Fotografia" },
   { key: "web",   label: "Web & Socials" },
 ];
-// Se quiseres exatamente os textos do mock:
-// const TABS = [
-//   { key: "video", label: "Qualidade Superior" },
-//   { key: "foto",  label: "Olhar Artístico" },
-//   { key: "web",   label: "Edição e Pós-Produção" },
-// ];
 
 export default function PortfolioSwitch({ value, onChange }) {
   const activeIndex = useMemo(
@@ -21,18 +15,18 @@ export default function PortfolioSwitch({ value, onChange }) {
 
   return (
     <div className="mx-auto w-full max-w-4xl">
-      {/* Trilho claro com borda branca e cantos bem arredondados */}
-      <div className="relative rounded-full bg-[#EBEBEB] p-1 ring-2 ring-white shadow-[0_4px_20px_rgba(0,0,0,.15)]">
-        {/* Indicador deslizante PRETO */}
+      {/* trilho */}
+      <div className="relative rounded-full bg-[#EBEBEB] p-1 ring-2 ring-white shadow-[0_4px_20px_rgba(0,0,0,.15)] overflow-hidden">
+        {/* indicador (pill preto) */}
         <div
-          className="absolute top-1 bottom-1 left-1 rounded-full bg-black transition-transform duration-300 ease-out"
+          className="absolute top-1 bottom-1 left-1 rounded-full bg-black transition-transform duration-300 ease-out will-change-transform"
           style={{
-            width: "calc(33.333% - 0.5rem)", // 3 opções, respeitando o padding do trilho
+            width: "calc((100% - 0.5rem) / 3)",        // p-1 = 0.25rem por lado → total 0.5rem
             transform: `translateX(${activeIndex * 100}%)`,
           }}
           aria-hidden="true"
         />
-        {/* Botões (texto por cima do indicador) */}
+        {/* botões */}
         <div className="relative grid grid-cols-3">
           {TABS.map((tab) => {
             const active = tab.key === value;
@@ -44,6 +38,7 @@ export default function PortfolioSwitch({ value, onChange }) {
                 aria-selected={active}
                 onClick={() => onChange(tab.key)}
                 className={`z-10 h-10 md:h-12 px-4 rounded-full font-semibold uppercase tracking-wide
+                  text-[11px] sm:text-xs md:text-sm
                   ${active ? "text-white" : "text-gray-500"}`}
               >
                 {tab.label}
