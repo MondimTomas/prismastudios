@@ -10,6 +10,7 @@ import Footer from "./components/Footer";
 import BackgroundVideo from "./components/BackgroundVideo";
 import HeroContent from "./components/HeroContent";
 import AboutSection from "./components/AboutSection";
+import VideoServicesSection from "./components/VideoServicesSection";
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -33,12 +34,8 @@ function App() {
     <AboutSection />
   
     <PortfolioSection />
-      <section id="sobre" className="min-h-[40vh] bg-[#EBEBEB]" />
-      <section id="servicos" className="min-h-[40vh] bg-[#EBEBEB]" />
-      <section id="estudio" className="min-h-[40vh] bg-[#EBEBEB]" />
-      <section id="aluguer" className="min-h-[40vh] bg-[#EBEBEB]" />
-      <section id="blog" className="min-h-[40vh] bg-[#EBEBEB]" />
-      <section id="contactos" className="min-h-[40vh] bg-[#EBEBEB]" />
+    <VideoServicesSection /> 
+
       <Footer navItems={NAV_ITEMS} />
     </div>
   );
