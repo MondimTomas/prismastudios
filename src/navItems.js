@@ -1,6 +1,5 @@
-// itens de navegação reutilizáveis (desktop, mobile, footer)
 export const NAV_ITEMS = [
-    { label: 'Portfólio', href: '#portfolio' },
+    { label: 'Portfólio', href: '/portfolio' },     // 👈 rota interna
     { label: 'Sobre Nós', href: '#sobre' },
     { label: 'Serviços', href: '#servicos' },
     { label: 'Estúdio', href: '#estudio' },
