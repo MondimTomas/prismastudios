@@ -2,7 +2,8 @@ import { Routes, Route } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import PortfolioPage from "./pages/PortfolioPage";
 import AboutPage from "./pages/AboutPage";
-import ServicesPage from "./pages/ServicesPage";   // 👈
+import ServicesPage from "./pages/ServicesPage";  
+import ServicosFotosEventos from "./pages/ServicosFotosEventos";  // 👈
 
 export default function App() {
   return (
@@ -10,7 +11,8 @@ export default function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/portfolio" element={<PortfolioPage />} />
       <Route path="/about" element={<AboutPage />} />
-      <Route path="/servicos" element={<ServicesPage />} /> {/* 👈 nova rota */}
+      <Route path="/servicos" element={<ServicesPage />} /> 
+       <Route path="/servicos/fotografia/eventos" element={<ServicosFotosEventos />} />
     </Routes>
   );
 }

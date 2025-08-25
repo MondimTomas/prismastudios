@@ -1,7 +1,7 @@
 // src/ServiceData.js
 export const SERVICES = {
   fotografia: [
-    { title: "Eventos",       img: "/f_eventos.jpeg",       href: "#" },
+     { title: "Eventos", img: "/f_eventos.jpeg", href: "/servicos/fotografia/eventos" },
     { title: "Desporto",      img: "/f_desporto.jpeg",      href: "#" },
     { title: "Retratos",      img: "/f_retratos.jpeg",      href: "#" },
     { title: "Restauração",   img: "/f_restauracao.jpeg",   href: "#" },
