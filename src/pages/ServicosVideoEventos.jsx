@@ -19,7 +19,7 @@ const VIDEOS = [
   },
   {
     title: "Batizado W&J",
-    src: "/videos/batizadoW&J.mp4",
+    src: "/videos/batizado-wj.mp4.mp4",
     thumb: "/thumbs/batizadoW&J.png",
 
   },
