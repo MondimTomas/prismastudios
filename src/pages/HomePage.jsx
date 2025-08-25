@@ -9,6 +9,7 @@ import BackgroundVideo from "../components/BackgroundVideo";
 import HeroContent from "../components/HeroContent";
 import AboutSection from "../components/AboutSection";
 import VideoServicesSection from "../components/VideoServicesSection";
+import BrandStrip from "../components/BrandStrip";
 
 export default function HomePage() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -31,6 +32,7 @@ export default function HomePage() {
       {/* Secções */}
       <AboutSection />
       <PortfolioSection />
+       <BrandStrip />
       <VideoServicesSection />
       <Footer navItems={NAV_ITEMS} />
     </div>
