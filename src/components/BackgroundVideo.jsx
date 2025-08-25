@@ -11,8 +11,9 @@ export default function BackgroundVideo() {
           poster="/poster.jpg"
           className="block absolute -inset-[2px] object-cover w-[calc(100%+2px)] h-[calc(100%+2px)]"
         >
-          <source src="/hero.webm" type="video/webm" />
-          <source src="/hero.mp4"  type="video/mp4" />
+         <source src="./hero.webm" type="video/webm" />
+<source src="./hero.mp4"  type="video/mp4" />
+
         </video>
   
         {/* overlay também com overscan 1px */}
