@@ -42,26 +42,42 @@ export default function MobileMenu({ open, onClose, navItems }) {
               );
             }
 
-            // Serviços como acordeão
+            // Serviços: texto navega, seta abre/recolhe
             return (
               <li key={item.href}>
-                <button
-                  className="w-full flex items-center justify-between hover:text-gray-300"
-                  onClick={() => setOpenServices((v) => !v)}
-                  aria-expanded={openServices}
-                  aria-controls="mobile-services-panel"
-                >
-                  <span>{item.label}</span>
-                  <svg
-                    className={`w-5 h-5 transition-transform ${
-                      openServices ? "rotate-180" : ""
-                    }`}
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
+                <div className="flex items-center justify-between">
+                  {/* 👉 tocar no texto navega para /servicos */}
+                  <a
+                    href={item.href}
+                    onClick={onClose}
+                    className="hover:text-gray-300"
                   >
-                    <path d="M7 10l5 5 5-5H7z" />
-                  </svg>
-                </button>
+                    {item.label}
+                  </a>
+
+                  {/* 👉 tocar na seta apenas expande/recolhe */}
+                  <button
+                    type="button"
+                    className="p-2 -mr-2"
+                    aria-expanded={openServices}
+                    aria-controls="mobile-services-panel"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setOpenServices((v) => !v);
+                    }}
+                  >
+                    <svg
+                      className={`w-5 h-5 transition-transform ${
+                        openServices ? "rotate-180" : ""
+                      }`}
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M7 10l5 5 5-5H7z" />
+                    </svg>
+                  </button>
+                </div>
 
                 {/* painel */}
                 <div
