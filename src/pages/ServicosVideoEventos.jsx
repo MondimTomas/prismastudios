@@ -19,7 +19,7 @@ const VIDEOS = [
   },
   {
     title: "Batizado W&J",
-    src: "/videos/batizado-wj.mp4.mp4",
+     src: "/videos/batizado-wj.mp4", 
     thumb: "/thumbs/batizadoW&J.png",
 
   },
@@ -103,12 +103,13 @@ function VideoModal({ open, onClose, video }) {
             />
           ) : (
             <video
-              src={video.src}
-              poster={video.thumb}
-              className="w-full h-full object-contain bg-black"
-              controls
-              autoPlay
-            />
+  src={video.src}
+  poster={video.thumb}
+  className="w-full h-full object-contain bg-black"
+  controls
+  playsInline
+/>
+
           )}
         </div>
         <div className="mt-3 text-white/90">{video.title}</div>
