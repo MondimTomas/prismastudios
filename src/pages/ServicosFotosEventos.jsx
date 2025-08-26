@@ -6,35 +6,130 @@ import Footer from "../components/Footer";
 import BrandStrip from "../components/BrandStrip";
 import { NAV_ITEMS } from "../navItems";
 
+// no topo do ficheiro
 const GALLERY = [
-  "/img1.jpg","/img2.jpg","/img3.jpg","/img4.jpg","/img5.jpg",
-  "/img6.jpg","/img7.jpg","/img8.jpg","/img9.jpg","/img10.jpg",
+  "/events1.jpg","/events2.jpg","/events3.jpg","/events4.jpg","/events5.jpg",
+  "/events6.jpg","/events7.jpg","/events8.jpg","/events9.jpg","/events10.jpg",
 ];
 
-/** ——— Carrossel topo (auto-play) ——— */
-function Carousel({ images, auto = true, interval = 2600 }) {
-  const scrollerRef = useRef(null);
+function CarouselItem({ src, idx }) {
+  const [orient, setOrient] = useState("square"); // 'landscape' | 'portrait' | 'square'
 
-  const scrollBy = useCallback((dir) => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    const amt = Math.round(el.clientWidth * 0.9);
-    el.scrollBy({ left: dir * amt, behavior: "smooth" });
-  }, []);
+  const handleLoad = (e) => {
+    const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+    const r = w / h;
+    if (r > 1.15) setOrient("landscape");
+    else if (r < 0.87) setOrient("portrait");
+    else setOrient("square");
+  };
+
+  const tilt = idx % 3 === 0 ? "-rotate-2" : idx % 3 === 1 ? "rotate-1" : "-rotate-1";
+
+  // tamanhos por orientação (responsivo)
+  const size =
+    orient === "landscape"
+      ? "w-[18rem] h-[12rem] sm:w-[22rem] sm:h-[14rem] md:w-[26rem] md:h-[16rem]"
+      : orient === "portrait"
+      ? "w-[12rem] h-[18rem] sm:w-[14rem] sm:h-[22rem] md:w-[16rem] md:h-[26rem]"
+      : "w-[14rem] h-[14rem] sm:w-[16rem] sm:h-[16rem] md:w-[18rem] md:h-[18rem]"; // square
+
+  return (
+    <li className="shrink-0">
+      <div className={`relative ${size} rounded-xl border-4 border-white shadow-xl transform ${tilt}`}>
+        <img
+          src={src}
+          alt=""
+          draggable={false}
+          onLoad={handleLoad}
+          className="absolute inset-0 w-full h-full object-cover select-none rounded-[10px]"
+        />
+      </div>
+    </li>
+  );
+}
+
+function Carousel({ images, auto = true, speed = 0.8 }) { // px/frame
+  const scrollerRef = useRef(null);
+  const rafRef = useRef(null);
 
   useEffect(() => {
     if (!auto) return;
     const el = scrollerRef.current;
     if (!el) return;
 
-    const id = setInterval(() => {
-      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
-      if (atEnd) el.scrollTo({ left: 0, behavior: "smooth" });
-      else scrollBy(1);
-    }, interval);
+    let running = true;
 
-    return () => clearInterval(id);
-  }, [auto, interval, scrollBy]);
+    const loadAll = async () => {
+      // garante que as imagens têm dimensões antes de medir overflow
+      try {
+        await Promise.all(
+          images.map(src => {
+            const img = new Image();
+            img.src = src;
+            return img.decode ? img.decode().catch(() => {}) : Promise.resolve();
+          })
+        );
+      } catch {}
+    };
+
+    const hasOverflow = () => el.scrollWidth > el.clientWidth + 4;
+
+    const start = () => {
+      if (!running) return;
+      // evita estar cravado no 0
+      if (el.scrollLeft <= 0) el.scrollLeft = 1;
+
+      const half = el.scrollWidth / 2; // porque duplicámos a lista
+
+      const step = () => {
+        if (!running) return;
+
+        // se não houver overflow, tenta novamente no próximo frame
+        if (!hasOverflow()) {
+          rafRef.current = requestAnimationFrame(step);
+          return;
+        }
+
+        el.scrollLeft += speed;
+
+        // loop perfeito: quando passa metade, recua metade
+        if (el.scrollLeft >= half) {
+          el.scrollLeft -= half;
+        }
+
+        rafRef.current = requestAnimationFrame(step);
+      };
+
+      rafRef.current = requestAnimationFrame(step);
+    };
+
+    let resizeTO;
+    const onResize = () => {
+      // pequena pausa para recalcular após responsive/layout
+      clearTimeout(resizeTO);
+      resizeTO = setTimeout(() => {
+        // reposiciona e continua
+        if (el) {
+          el.scrollLeft = Math.min(el.scrollLeft, el.scrollWidth / 4);
+        }
+      }, 120);
+    };
+
+    (async () => {
+      await loadAll();
+      start();
+      window.addEventListener("resize", onResize);
+    })();
+
+    return () => {
+      running = false;
+      cancelAnimationFrame(rafRef.current);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [auto, speed, images]);
+
+  // lista duplicada (loop)
+  const loopImages = [...images, ...images];
 
   return (
     <div className="relative">
@@ -43,29 +138,20 @@ function Carousel({ images, auto = true, interval = 2600 }) {
 
       <div
         ref={scrollerRef}
-        className="w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory px-1 scrollbar-hide [&::-webkit-scrollbar]:hidden"
+        className="w-full overflow-x-auto overflow-y-hidden px-1 scrollbar-hide [&::-webkit-scrollbar]:hidden"
         aria-roledescription="carousel"
       >
-        <ul className="flex gap-6 md:gap-8 items-stretch py-4">
-          {images.map((src, idx) => {
-            const tilt = idx % 3 === 0 ? "-rotate-2" : idx % 3 === 1 ? "rotate-1" : "-rotate-1";
-            return (
-              <li key={src} className="snap-center shrink-0" style={{ scrollSnapStop: "always" }}>
-                <img
-                  src={src}
-                  alt={`evento-${idx + 1}`}
-                  draggable={false}
-                  className={`select-none w-[12rem] h-[12rem] sm:w-[16rem] sm:h-[16rem] md:w-[18rem] md:h-[18rem]
-                    object-cover rounded-xl border-4 border-white shadow-xl transform ${tilt}`}
-                />
-              </li>
-            );
-          })}
+        {/* importante: linha única para garantir overflow */}
+        <ul className="flex flex-nowrap gap-6 md:gap-8 items-center py-4">
+          {loopImages.map((src, idx) => (
+            <CarouselItem key={`${src}-${idx}`} src={src} idx={idx} />
+          ))}
         </ul>
       </div>
     </div>
   );
 }
+
 
 /** ——— UI pequenina ——— */
 const Check = () => (
