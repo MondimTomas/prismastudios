@@ -9,11 +9,17 @@ import { NAV_ITEMS } from "../navItems";
  *  e thumbs em /public/thumbs
  */
 const VIDEOS = [
-  { title: "Functional Training – Teaser", src: "/videos/funcional-teaser.mp4", thumb: "/thumbs/sport1.jpg", duration: "00:25", platform: "MP4" },
-  { title: "Matchday Highlights – U19",   src: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", thumb: "/thumbs/sport2.jpg", duration: "01:08", platform: "YouTube" },
-  { title: "PT Session – Strength",       src: "/videos/pt-strength.mp4", thumb: "/thumbs/sport3.jpg", duration: "00:42", platform: "MP4" },
-  { title: "Box Cross – Recap",           src: "https://youtu.be/9bZkp7q19f0", thumb: "/thumbs/sport4.jpg", duration: "00:58", platform: "YouTube" },
+  { title: "Vídeo Desporto 1", src: "/videos/video-desporto1.mp4", thumb: "/thumbs/video-desporto1.png", platform: "MP4", duration: "—" },
+  { title: "Vídeo Desporto 2 (vertical)", src: "/videos/video-desporto2.mp4", thumb: "/thumbs/video-desporto2.png", platform: "MP4", duration: "—", aspect: "portrait" },
+  { title: "Vídeo Desporto 3", src: "/videos/video-desporto3.mp4", thumb: "/thumbs/video-desporto3.png", platform: "MP4", duration: "—" },
+  { title: "Vídeo Desporto 4 (vertical)", src: "/videos/video-desporto4.mp4", thumb: "/thumbs/video-desporto4.png", platform: "MP4", duration: "—", aspect: "portrait" },
+  { title: "Vídeo Desporto 5", src: "/videos/video-desporto5.mp4", thumb: "/thumbs/video-desporto5.png", platform: "MP4", duration: "—" },
+  { title: "Vídeo Desporto 6 (vertical)", src: "/videos/video-desporto6.mp4", thumb: "/thumbs/video-desporto6.png", platform: "MP4", duration: "—", aspect: "portrait" },
+  // se houver 7:
+  // { title: "Vídeo Desporto 7", src: "/videos/video-desporto7.mp4", thumb: "/thumbs/video-desporto7.png", platform: "MP4", duration: "—" },
 ];
+
+
 
 const isYouTube = (url) => /youtube\.com|youtu\.be/.test(url);
 const isVimeo   = (url) => /vimeo\.com/.test(url);
@@ -35,11 +41,18 @@ function toVimeoEmbed(url) {
 
 /* ---------- Modal de vídeo ---------- */
 function VideoModal({ open, onClose, video }) {
+  const [isPortrait, setIsPortrait] = useState(video?.aspect === "portrait");
+
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
     if (open) window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+
+  useEffect(() => {
+    // se no array já veio marcado como portrait, aplica logo
+    setIsPortrait(video?.aspect === "portrait");
+  }, [video]);
 
   if (!open || !video) return null;
 
@@ -49,11 +62,25 @@ function VideoModal({ open, onClose, video }) {
     ? toVimeoEmbed(video.src)
     : null;
 
+  const frameClass = isPortrait
+    ? "aspect-[9/16] h-[85vh] max-h-[85vh] max-w-[90vw] mx-auto"
+    : "aspect-video w-full";
+
   return (
-    <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
       <div className="relative w-full max-w-5xl" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute -top-10 right-0 text-white/90 hover:text-white text-2xl" aria-label="Fechar">✕</button>
-        <div className="relative w-full aspect-video rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_12px_40px_rgba(0,0,0,.5)] bg-black">
+        <button
+          onClick={onClose}
+          className="absolute -top-10 right-0 text-white/90 hover:text-white text-2xl"
+          aria-label="Fechar"
+        >
+          ✕
+        </button>
+
+        <div className={`rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_12px_40px_rgba(0,0,0,.5)] bg-black ${frameClass}`}>
           {embedSrc ? (
             <iframe
               src={embedSrc}
@@ -64,21 +91,44 @@ function VideoModal({ open, onClose, video }) {
               allowFullScreen
             />
           ) : (
-            <video src={video.src} poster={video.thumb} className="w-full h-full object-contain bg-black" controls autoPlay />
+            <video
+              src={video.src}
+              poster={video.thumb}
+              className="w-full h-full object-contain bg-black"
+              controls
+              playsInline
+              autoPlay
+              onLoadedMetadata={(e) => {
+                const v = e.currentTarget;
+                if (v.videoWidth && v.videoHeight) {
+                  setIsPortrait(v.videoHeight / v.videoWidth > 1.12);
+                }
+              }}
+            />
           )}
         </div>
+
         <div className="mt-3 text-white/90">{video.title}</div>
       </div>
     </div>
   );
 }
 
+
 /* ---------- Card + Carrossel ---------- */
 function VideoCard({ v, onPlay }) {
+  const aspectClass = v.aspect === "portrait" ? "aspect-[9/16]" : "aspect-video";
+
   return (
     <div className="w-[16rem] md:w-[20rem] shrink-0">
-      <div className="relative aspect-video rounded-xl overflow-hidden ring-1 ring-white/10 shadow-[0_10px_30px_rgba(0,0,0,.35)] group">
-        <img src={v.thumb} alt={v.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" loading="lazy" decoding="async" />
+      <div className={`relative ${aspectClass} rounded-xl overflow-hidden ring-1 ring-white/10 shadow-[0_10px_30px_rgba(0,0,0,.35)] group`}>
+        <img
+          src={v.thumb}
+          alt={v.title}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+          loading="lazy"
+          decoding="async"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
         <button
           onClick={() => onPlay(v)}
@@ -88,8 +138,8 @@ function VideoCard({ v, onPlay }) {
           ▶
         </button>
         <div className="absolute top-2 left-2 flex gap-2">
-          <span className="px-2 py-0.5 rounded-full text-xs bg-black/60 text-white/90">{v.platform}</span>
-          <span className="px-2 py-0.5 rounded-full text-xs bg-black/60 text-white/90">{v.duration}</span>
+          {v.platform && <span className="px-2 py-0.5 rounded-full text-xs bg-black/60 text-white/90">{v.platform}</span>}
+          {v.duration && <span className="px-2 py-0.5 rounded-full text-xs bg-black/60 text-white/90">{v.duration}</span>}
         </div>
       </div>
       <div className="mt-3">
@@ -101,6 +151,7 @@ function VideoCard({ v, onPlay }) {
     </div>
   );
 }
+
 
 function VideoCarousel({ videos, onPlay, auto = true, interval = 2800 }) {
   const ref = useRef(null);
