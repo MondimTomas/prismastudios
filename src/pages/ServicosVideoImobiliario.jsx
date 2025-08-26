@@ -7,35 +7,15 @@ import { NAV_ITEMS } from "../navItems";
 
 /** Troca pelos teus vídeos reais (YouTube/Vimeo ou .mp4 em /public/videos) */
 const VIDEOS = [
-  {
-    title: "Walkthrough T3 com Styling",
-    src: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    thumb: "/thumbs/real1.jpg",
-    duration: "01:20",
-    platform: "YouTube",
-  },
-  {
-    title: "Penthouse – Teaser Vertical",
-    src: "/videos/penthouse-teaser.mp4",
-    thumb: "/thumbs/real2.jpg",
-    duration: "00:28",
-    platform: "MP4",
-  },
-  {
-    title: "Hotel Boutique – Aerial + Interior",
-    src: "/videos/hotel-boutique.mp4",
-    thumb: "/thumbs/real3.jpg",
-    duration: "01:05",
-    platform: "MP4",
-  },
-  {
-    title: "Moradia – Agent Intro",
-    src: "https://youtu.be/9bZkp7q19f0",
-    thumb: "/thumbs/real4.jpg",
-    duration: "01:42",
-    platform: "YouTube",
-  },
+  { src: "/videos/videoimob1.mp4", thumb: "/thumbs/videoimob1.png", duration: "—", platform: "MP4" },
+  {  src: "/videos/videoimob2.mp4", thumb: "/thumbs/videoimob2.png", duration: "—", platform: "MP4" },
+  {  src: "/videos/videoimob3.mp4", thumb: "/thumbs/videoimob3.png", duration: "—", platform: "MP4" },
+  { src: "/videos/videoimob4.mp4", thumb: "/thumbs/videoimob4.png", duration: "—", platform: "MP4" },
+  {  src: "/videos/videoimob5.mp4", thumb: "/thumbs/videoimob5.png", duration: "—", platform: "MP4" },
+  { src: "/videos/videoimob6.mp4", thumb: "/thumbs/videoimob6.png", duration: "—", platform: "MP4" },
+  {  src: "/videos/videoimob7.mp4", thumb: "/thumbs/videoimob7.png", duration: "—", platform: "MP4" },
 ];
+
 
 const isYouTube = (url) => /youtube\.com|youtu\.be/.test(url);
 const isVimeo = (url) => /vimeo\.com/.test(url);
@@ -57,6 +37,8 @@ function toVimeoEmbed(url) {
 
 /* ---------------- Modal de vídeo ---------------- */
 function VideoModal({ open, onClose, video }) {
+  const [isPortrait, setIsPortrait] = useState(false);
+
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
     if (open) window.addEventListener("keydown", onKey);
@@ -71,11 +53,28 @@ function VideoModal({ open, onClose, video }) {
     ? toVimeoEmbed(video.src)
     : null;
 
+  // classes para landscape vs portrait
+  const frameClass = isPortrait
+    ? "aspect-[9/16] h-[85vh] max-h-[85vh] max-w-[90vw] mx-auto"
+    : "aspect-video w-full";
+
   return (
-    <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
       <div className="relative w-full max-w-5xl" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute -top-10 right-0 text-white/90 hover:text-white text-2xl" aria-label="Fechar">✕</button>
-        <div className="relative w-full aspect-video rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_12px_40px_rgba(0,0,0,.5)] bg-black">
+        <button
+          onClick={onClose}
+          className="absolute -top-10 right-0 text-white/90 hover:text-white text-2xl"
+          aria-label="Fechar"
+        >
+          ✕
+        </button>
+
+        <div
+          className={`rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_12px_40px_rgba(0,0,0,.5)] bg-black ${frameClass}`}
+        >
           {embedSrc ? (
             <iframe
               src={embedSrc}
@@ -86,14 +85,29 @@ function VideoModal({ open, onClose, video }) {
               allowFullScreen
             />
           ) : (
-            <video src={video.src} poster={video.thumb} className="w-full h-full object-contain bg-black" controls autoPlay />
+            <video
+              src={video.src}
+              poster={video.thumb}
+              className="w-full h-full object-contain bg-black"
+              controls
+              playsInline
+              autoPlay
+              onLoadedMetadata={(e) => {
+                const v = e.currentTarget;
+                if (v.videoWidth && v.videoHeight) {
+                  setIsPortrait(v.videoHeight / v.videoWidth > 1.12);
+                }
+              }}
+            />
           )}
         </div>
+
         <div className="mt-3 text-white/90">{video.title}</div>
       </div>
     </div>
   );
 }
+
 
 /* ---------------- Card + Carrossel ---------------- */
 function VideoCard({ v, onPlay }) {

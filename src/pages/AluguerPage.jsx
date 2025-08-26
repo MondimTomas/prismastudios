@@ -59,7 +59,7 @@ function MiniCategoryCard({ label, icon, href }) {
         <img
           src={icon}
           alt=""
-          className="absolute inset-0 m-auto object-contain w-[95%] h-[95%]"
+          className="absolute inset-0 m-auto object-contain w-[95%] h-[9≠=5%]"
           style={{ filter: "drop-shadow(0 8px 16px rgba(0,0,0,.4))" }}
         />
       </div>
