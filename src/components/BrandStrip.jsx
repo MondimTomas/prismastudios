@@ -6,6 +6,7 @@ export default function BrandStrip() {
     "/logo_moments.png",
     "/logo_ppv.png",
       "/logo_ips.png",
+         "/logo_dmevents.png",
     // adiciona mais aqui…
   ];
 
