@@ -48,7 +48,7 @@ function CarouselItem({ src, idx }) {
   );
 }
 
-function Carousel({ images, auto = true, speed = 0.8 }) { // px/frame
+function Carousel({ images, auto = true, pxPerSec = 60 }) { // velocidade em px/seg
   const scrollerRef = useRef(null);
   const rafRef = useRef(null);
 
@@ -60,10 +60,9 @@ function Carousel({ images, auto = true, speed = 0.8 }) { // px/frame
     let running = true;
 
     const loadAll = async () => {
-      // garante que as imagens têm dimensões antes de medir overflow
       try {
         await Promise.all(
-          images.map(src => {
+          images.map((src) => {
             const img = new Image();
             img.src = src;
             return img.decode ? img.decode().catch(() => {}) : Promise.resolve();
@@ -76,26 +75,26 @@ function Carousel({ images, auto = true, speed = 0.8 }) { // px/frame
 
     const start = () => {
       if (!running) return;
-      // evita estar cravado no 0
+
+      // força a não ficar “preso” no 0
       if (el.scrollLeft <= 0) el.scrollLeft = 1;
 
-      const half = el.scrollWidth / 2; // porque duplicámos a lista
+      const startTime = performance.now();
 
-      const step = () => {
+      const step = (now) => {
         if (!running) return;
 
-        // se não houver overflow, tenta novamente no próximo frame
         if (!hasOverflow()) {
           rafRef.current = requestAnimationFrame(step);
           return;
         }
 
-        el.scrollLeft += speed;
+        const half = el.scrollWidth / 2; // duplicámos a lista
+        const elapsed = (now - startTime) / 1000; // segundos
+        const dist = (elapsed * pxPerSec) % half;
 
-        // loop perfeito: quando passa metade, recua metade
-        if (el.scrollLeft >= half) {
-          el.scrollLeft -= half;
-        }
+        // coloca o scroll na posição baseada no tempo
+        el.scrollLeft = dist;
 
         rafRef.current = requestAnimationFrame(step);
       };
@@ -105,13 +104,9 @@ function Carousel({ images, auto = true, speed = 0.8 }) { // px/frame
 
     let resizeTO;
     const onResize = () => {
-      // pequena pausa para recalcular após responsive/layout
       clearTimeout(resizeTO);
       resizeTO = setTimeout(() => {
-        // reposiciona e continua
-        if (el) {
-          el.scrollLeft = Math.min(el.scrollLeft, el.scrollWidth / 4);
-        }
+        if (el) el.scrollLeft = Math.min(el.scrollLeft, el.scrollWidth / 4);
       }, 120);
     };
 
@@ -126,9 +121,8 @@ function Carousel({ images, auto = true, speed = 0.8 }) { // px/frame
       cancelAnimationFrame(rafRef.current);
       window.removeEventListener("resize", onResize);
     };
-  }, [auto, speed, images]);
+  }, [auto, pxPerSec, images]);
 
-  // lista duplicada (loop)
   const loopImages = [...images, ...images];
 
   return (
@@ -138,10 +132,10 @@ function Carousel({ images, auto = true, speed = 0.8 }) { // px/frame
 
       <div
         ref={scrollerRef}
-        className="w-full overflow-x-auto overflow-y-hidden px-1 scrollbar-hide [&::-webkit-scrollbar]:hidden"
+        className="w-full overflow-x-auto overflow-y-hidden px-1 [&::-webkit-scrollbar]:hidden"
         aria-roledescription="carousel"
       >
-        {/* importante: linha única para garantir overflow */}
+        {/* importante: SEM QUEBRA DE LINHA */}
         <ul className="flex flex-nowrap gap-6 md:gap-8 items-center py-4">
           {loopImages.map((src, idx) => (
             <CarouselItem key={`${src}-${idx}`} src={src} idx={idx} />
