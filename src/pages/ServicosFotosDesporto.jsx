@@ -1,64 +1,131 @@
 // src/pages/ServicosFotosDesporto.jsx
-import { useRef, useCallback, useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import MobileMenu from "../components/MobileMenu";
 import Footer from "../components/Footer";
 import BrandStrip from "../components/BrandStrip";
 import { NAV_ITEMS } from "../navItems";
 
-// coloca 8–12 imagens em /public (ex.: /sport1.jpg ... /sport10.jpg)
+// 10 fotos: /public/desporto1.jpg ... /desporto10.jpg
 const GALLERY = [
-  "/sport1.jpg","/sport2.jpg","/sport3.jpg","/sport4.jpg","/sport5.jpg",
-  "/sport6.jpg","/sport7.jpg","/sport8.jpg","/sport9.jpg","/sport10.jpg",
+  "/desporto1.jpg","/desporto2.jpg","/desporto3.jpg","/desporto4.jpg","/desporto5.jpg",
+  "/desporto6.jpg","/desporto7.jpg","/desporto8.jpg","/desporto9.jpg","/desporto10.jpg",
 ];
 
-/* ---------- Carrossel topo (auto-play) ---------- */
-function Carousel({ images, auto = true, interval = 2600 }) {
-  const scrollerRef = useRef(null);
+/* ---------- item do carrossel com detecção de orientação ---------- */
+function CarouselItem({ src, idx }) {
+  const [orient, setOrient] = useState("square"); // 'landscape' | 'portrait' | 'square'
+  const handleLoad = (e) => {
+    const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+    const r = w / h;
+    if (r > 1.15) setOrient("landscape");
+    else if (r < 0.87) setOrient("portrait");
+    else setOrient("square");
+  };
 
-  const scrollBy = useCallback((dir) => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    const amt = Math.round(el.clientWidth * 0.9);
-    el.scrollBy({ left: dir * amt, behavior: "smooth" });
-  }, []);
+  const tilt = idx % 3 === 0 ? "-rotate-2" : idx % 3 === 1 ? "rotate-1" : "-rotate-1";
+
+  const size =
+    orient === "landscape"
+      ? "w-[18rem] h-[12rem] sm:w-[22rem] sm:h-[14rem] md:w-[26rem] md:h-[16rem]"
+      : orient === "portrait"
+      ? "w-[12rem] h-[18rem] sm:w-[14rem] sm:h-[22rem] md:w-[16rem] md:h-[26rem]"
+      : "w-[14rem] h-[14rem] sm:w-[16rem] sm:h-[16rem] md:w-[18rem] md:h-[18rem]";
+
+  return (
+    <li className="shrink-0">
+      <div className={`relative ${size} rounded-xl border-4 border-white shadow-xl transform ${tilt}`}>
+        <img
+          src={src}
+          alt=""
+          draggable={false}
+          onLoad={handleLoad}
+          className="absolute inset-0 w-full h-full object-cover select-none rounded-[10px]"
+        />
+      </div>
+    </li>
+  );
+}
+
+/* ---------- carrossel com rotação contínua (marquee) ---------- */
+function Carousel({ images, pxPerSec = 60 }) { // velocidade em px/seg
+  const scrollerRef = useRef(null);
+  const rafRef = useRef(null);
 
   useEffect(() => {
-    if (!auto) return;
     const el = scrollerRef.current;
     if (!el) return;
-    const id = setInterval(() => {
-      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
-      if (atEnd) el.scrollTo({ left: 0, behavior: "smooth" });
-      else scrollBy(1);
-    }, interval);
-    return () => clearInterval(id);
-  }, [auto, interval, scrollBy]);
+
+    let running = true;
+
+    const loadAll = async () => {
+      try {
+        await Promise.all(
+          images.map((src) => {
+            const img = new Image();
+            img.src = src;
+            return img.decode ? img.decode().catch(() => {}) : Promise.resolve();
+          })
+        );
+      } catch {}
+    };
+
+    const start = () => {
+      if (!running) return;
+      const startTime = performance.now();
+
+      const step = (now) => {
+        if (!running) return;
+        const half = el.scrollWidth / 2; // lista está duplicada
+        if (half <= el.clientWidth) {
+          rafRef.current = requestAnimationFrame(step);
+          return;
+        }
+        const elapsed = (now - startTime) / 1000;
+        const dist = (elapsed * pxPerSec) % half;
+        el.scrollLeft = dist;
+        rafRef.current = requestAnimationFrame(step);
+      };
+
+      // sair do 0 evita “colar”
+      el.scrollLeft = 1;
+      rafRef.current = requestAnimationFrame(step);
+    };
+
+    (async () => {
+      await loadAll();
+      start();
+      const onResize = () => { el.scrollLeft = Math.min(el.scrollLeft, el.scrollWidth / 4); };
+      window.addEventListener("resize", onResize);
+      return () => window.removeEventListener("resize", onResize);
+    })();
+
+    return () => { running = false; cancelAnimationFrame(rafRef.current); };
+  }, [images, pxPerSec]);
+
+  const loopImages = [...images, ...images];
 
   return (
     <div className="relative">
       <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-[#2D2C2A] to-transparent z-10" />
       <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[#2D2C2A] to-transparent z-10" />
+
       <div
         ref={scrollerRef}
-        className="w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory px-1 scrollbar-hide [&::-webkit-scrollbar]:hidden"
+        className="w-full overflow-x-auto overflow-y-hidden px-1 [&::-webkit-scrollbar]:hidden"
         aria-roledescription="carousel"
       >
-        <ul className="flex gap-6 md:gap-8 items-stretch py-4">
-          {images.map((src, i) => {
-            const tilt = i % 3 === 0 ? "-rotate-2" : i % 3 === 1 ? "rotate-1" : "-rotate-1";
-            return (
-              <li key={src} className="snap-center shrink-0" style={{ scrollSnapStop: "always" }}>
-                <img
-                  src={src}
-                  alt={`desporto-${i + 1}`}
-                  draggable={false}
-                  className={`select-none w-[12rem] h-[12rem] sm:w-[16rem] sm:h-[16rem] md:w-[18rem] md:h-[18rem] object-cover rounded-xl border-4 border-white shadow-xl transform ${tilt}`}
-                />
-              </li>
-            );
-          })}
+        <ul className="flex flex-nowrap gap-6 md:gap-8 items-center py-4">
+          {loopImages.map((src, idx) => (
+            <CarouselItem key={`${src}-${idx}`} src={src} idx={idx} />
+          ))}
         </ul>
+      </div>
+
+      {/* legenda pequena por baixo do carrossel */}
+      <div className="mt-2 flex flex-col items-center text-white/70 text-[11px] tracking-wider select-none">
+        <span aria-hidden className="text-lg leading-none">↑</span>
+        <span>Criações PRISMA</span>
       </div>
     </div>
   );
@@ -103,9 +170,9 @@ export default function ServicosFotosDesporto() {
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-16">
         {/* 1) Carrossel topo */}
-        <Carousel images={GALLERY} />
+        <Carousel images={GALLERY} pxPerSec={70} />
 
-        {/* 2) Header+copy para desporto */}
+        {/* 2) Header + copy */}
         <section className="mt-10 grid lg:grid-cols-12 gap-8 items-start">
           <div className="lg:col-span-7">
             <p className="uppercase tracking-widest text-white/60 text-xs mb-2">Serviço</p>

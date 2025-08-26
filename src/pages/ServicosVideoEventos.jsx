@@ -1,3 +1,4 @@
+// src/pages/ServicosVideoEventos.jsx
 import { useRef, useCallback, useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import MobileMenu from "../components/MobileMenu";
@@ -5,37 +6,42 @@ import Footer from "../components/Footer";
 import BrandStrip from "../components/BrandStrip";
 import { NAV_ITEMS } from "../navItems";
 
-/** Troca pelos teus vídeos reais:
- *  - Para vídeos locais: mete .mp4 em /public/videos e thumbs em /public/thumbs
- *  - Para YouTube/Vimeo: usa o link normal (watch?v=... ou youtu.be/... / vimeo.com/...)
- */
+/** Substitui pelos teus vídeos (se algum for vertical, mete aspect:"portrait") */
 const VIDEOS = [
   {
-    title: "Sunset Festival Recap",
-    src: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    thumb: "/thumbs/sunset.jpg",
-    duration: "01:12",
-    platform: "YouTube",
-  },
-  {
     title: "Batizado W&J",
-     src: "/videos/batizado-wj-v2.mp4", 
+    src: "/videos/batizado-wj-v2.mp4",
     thumb: "/thumbs/batizadoW&J.png",
 
+    // aspect: "portrait",
   },
   {
-    title: "Casamento A&L Highlights",
-    src: "/videos/casamento.mp4",
-    thumb: "/thumbs/casamento.jpg",
-    duration: "02:05",
-    platform: "MP4",
+    title: "Paixao pelo Vinho Ericeira",
+    src: "/videos/videoevento1.mp4",
+    thumb: "/thumbs/videoevento1.png",
+
+    // aspect: "portrait",
   },
   {
-    title: "Sunset Rooftop Aftermovie",
-    src: "https://youtu.be/9bZkp7q19f0",
-    thumb: "/thumbs/rooftop.jpg",
-    duration: "01:29",
-    platform: "YouTube",
+    title: "Semana Aacademica Setubal",
+    src: "/videos/videoevento2.mp4",
+    thumb: "/thumbs/videoevento2.png",
+
+    // aspect: "portrait",
+  },
+  {
+    title: "Gala Finalistas",
+    src: "/videos/videoevento3.mp4",
+    thumb: "/thumbs/videoevento3.png",
+
+    // aspect: "portrait",
+  },
+  {
+    title: "Cerimonia Estudantil",
+    src: "/videos/videoevento4.mp4",
+    thumb: "/thumbs/videoevento4.png",
+
+    // aspect: "portrait",
   },
 ];
 
@@ -45,10 +51,7 @@ const isVimeo = (url) => /vimeo\.com/.test(url);
 function toYouTubeEmbed(url) {
   try {
     const u = new URL(url, window.location.origin);
-    const id =
-      u.hostname === "youtu.be"
-        ? u.pathname.slice(1)
-        : u.searchParams.get("v");
+    const id = u.hostname === "youtu.be" ? u.pathname.slice(1) : u.searchParams.get("v");
     return id ? `https://www.youtube.com/embed/${id}?autoplay=1&rel=0` : url;
   } catch {
     return url;
@@ -64,8 +67,14 @@ function toVimeoEmbed(url) {
   }
 }
 
-/** Modal de vídeo (YouTube/Vimeo/MP4) */
+/** Modal de vídeo com detecção de orientação e limites para vertical */
 function VideoModal({ open, onClose, video }) {
+  const [isPortrait, setIsPortrait] = useState(video?.aspect === "portrait");
+
+  useEffect(() => {
+    setIsPortrait(video?.aspect === "portrait");
+  }, [video]);
+
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
     if (open) window.addEventListener("keydown", onKey);
@@ -80,9 +89,18 @@ function VideoModal({ open, onClose, video }) {
     ? toVimeoEmbed(video.src)
     : null;
 
+  // Para vertical limitamos pela altura da viewport.
+  const wrapperClass = isPortrait ? "relative w-auto" : "relative w-full max-w-5xl";
+  const frameClass = isPortrait
+    ? "aspect-[9/16] h-[85vh] max-h-[85vh] max-w-[90vw] mx-auto"
+    : "aspect-video w-full";
+
   return (
-    <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div className="relative w-full max-w-5xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div className={wrapperClass} onClick={(e) => e.stopPropagation()}>
         <button
           onClick={onClose}
           className="absolute -top-10 right-0 text-white/90 hover:text-white text-2xl"
@@ -91,7 +109,9 @@ function VideoModal({ open, onClose, video }) {
           ✕
         </button>
 
-        <div className="relative w-full aspect-video rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_12px_40px_rgba(0,0,0,.5)] bg-black">
+        <div
+          className={`rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_12px_40px_rgba(0,0,0,.5)] bg-black ${frameClass}`}
+        >
           {embedSrc ? (
             <iframe
               src={embedSrc}
@@ -103,15 +123,21 @@ function VideoModal({ open, onClose, video }) {
             />
           ) : (
             <video
-  src={video.src}
-  poster={video.thumb}
-  className="w-full h-full object-contain bg-black"
-  controls
-  playsInline
-/>
-
+              src={video.src}
+              poster={video.thumb}
+              className="w-full h-full object-contain bg-black"
+              controls
+              playsInline
+              onLoadedMetadata={(e) => {
+                const v = e.currentTarget;
+                if (v.videoWidth && v.videoHeight) {
+                  setIsPortrait(v.videoHeight / v.videoWidth > 1.12);
+                }
+              }}
+            />
           )}
         </div>
+
         <div className="mt-3 text-white/90">{video.title}</div>
       </div>
     </div>
@@ -120,39 +146,42 @@ function VideoModal({ open, onClose, video }) {
 
 /** Card do vídeo no carrossel */
 function VideoCard({ v, onPlay }) {
+  const aspectClass = v.aspect === "portrait" ? "aspect-[9/16]" : "aspect-video";
+
   return (
     <div className="w-[16rem] md:w-[20rem] shrink-0">
-      <div className="relative aspect-video rounded-xl overflow-hidden ring-1 ring-white/10 shadow-[0_10px_30px_rgba(0,0,0,.35)] group">
-        <img
-          src={v.thumb}
-          alt={v.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-          loading="lazy"
-          decoding="async"
-        />
+      <div className={`relative ${aspectClass} rounded-xl overflow-hidden ring-1 ring-white/10 shadow-[0_10px_30px_rgba(0,0,0,.35)] group`}>
+        {v.thumb ? (
+          <img
+            src={v.thumb}
+            alt={v.title}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          <div className="w-full h-full bg-black/40" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-        {/* Play button */}
+
         <button
           onClick={() => onPlay(v)}
-          className="absolute inset-0 m-auto w-14 h-14 rounded-full bg-white/90 text-black flex items-center justify-center shadow-lg
-                     group-hover:scale-110 transition-transform"
+          className="absolute inset-0 m-auto w-14 h-14 rounded-full bg-white/90 text-black flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"
           aria-label={`Reproduzir ${v.title}`}
         >
           ▶
         </button>
-        {/* Badges */}
-        <div className="absolute top-2 left-2 flex gap-2">
-          <span className="px-2 py-0.5 rounded-full text-xs bg-black/60 text-white/90">{v.platform}</span>
-          <span className="px-2 py-0.5 rounded-full text-xs bg-black/60 text-white/90">{v.duration}</span>
-        </div>
+
+        {(v.platform || v.duration) && (
+          <div className="absolute top-2 left-2 flex gap-2">
+            {v.platform && <span className="px-2 py-0.5 rounded-full text-xs bg-black/60 text-white/90">{v.platform}</span>}
+            {v.duration && <span className="px-2 py-0.5 rounded-full text-xs bg-black/60 text-white/90">{v.duration}</span>}
+          </div>
+        )}
       </div>
-      {/* Info abaixo do thumb */}
+
       <div className="mt-3">
-        <button
-          onClick={() => onPlay(v)}
-          className="text-left text-base md:text-lg font-semibold hover:underline"
-          title="Ver vídeo"
-        >
+        <button onClick={() => onPlay(v)} className="text-left text-base md:text-lg font-semibold hover:underline">
           {v.title}
         </button>
         <div className="text-sm text-white/70">Clica para assistir em tamanho grande</div>
@@ -161,7 +190,7 @@ function VideoCard({ v, onPlay }) {
   );
 }
 
-/** Carrossel horizontal com autoplay */
+/** Carrossel horizontal com autoplay e setas */
 function VideoCarousel({ videos, onPlay, auto = true, interval = 2800 }) {
   const ref = useRef(null);
   const scrollBy = useCallback((dir) => {
@@ -171,7 +200,7 @@ function VideoCarousel({ videos, onPlay, auto = true, interval = 2800 }) {
     el.scrollBy({ left: dir * amt, behavior: "smooth" });
   }, []);
 
-  // autoplay + pausa em hover
+  // autoplay com pausa em hover
   useEffect(() => {
     if (!auto) return;
     const el = ref.current;
@@ -198,7 +227,7 @@ function VideoCarousel({ videos, onPlay, auto = true, interval = 2800 }) {
 
   return (
     <div className="relative">
-      {/* fades */}
+      {/* fades laterais */}
       <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-[#2D2C2A] to-transparent z-10" />
       <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[#2D2C2A] to-transparent z-10" />
 
@@ -257,7 +286,7 @@ export default function ServicosVideoEventos() {
       <MobileMenu open={menuOpen} onClose={() => setMenuOpen(false)} navItems={NAV_ITEMS} />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-16">
-        {/* 1) Carrossel topo (sem título) */}
+        {/* 1) Carrossel topo */}
         <VideoCarousel videos={VIDEOS} onPlay={setActive} />
 
         {/* 2) Texto do serviço */}

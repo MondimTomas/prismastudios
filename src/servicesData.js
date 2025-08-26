@@ -7,7 +7,7 @@ export const SERVICES_COLS = [
         { label: "Desporto", href: "#srv-foto-desporto" },
         { label: "Retratos", href: "#srv-foto-retratos" },
         { label: "Restauração", href: "#srv-foto-restauracao" },
-        { label: "Publicidade", href: "#srv-foto-publicidade" },
+        //{ label: "Publicidade", href: "#srv-foto-publicidade" },
         { label: "Drone", href: "#srv-foto-drone" },
         { label: "Imobiliárias", href: "#srv-foto-imobiliarias" },
       ],

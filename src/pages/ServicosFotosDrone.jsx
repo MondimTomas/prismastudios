@@ -1,89 +1,147 @@
 // src/pages/ServicosFotosDrone.jsx
-import { useRef, useCallback, useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import MobileMenu from "../components/MobileMenu";
 import Footer from "../components/Footer";
 import BrandStrip from "../components/BrandStrip";
 import { NAV_ITEMS } from "../navItems";
 
-/** Ajusta para os teus ficheiros em /public */
+/** 8 imagens em /public */
 const GALLERY = [
-  "/drone1.jpg","/drone2.jpg","/drone3.jpg","/drone4.jpg","/drone5.jpg",
-  "/drone6.jpg","/drone7.jpg","/drone8.jpg","/drone9.jpg","/drone10.jpg",
+  "/drone1.jpg","/drone2.jpg","/drone3.jpg","/drone4.jpg",
+  "/drone5.jpg","/drone6.jpg","/drone7.jpg","/drone8.jpg",
 ];
 
-/* ---------- Carrossel topo (auto-play) ---------- */
-function Carousel({ images, auto = true, interval = 2600 }) {
-  const scrollerRef = useRef(null);
+/* ---------- Item com detecção de orientação ---------- */
+function CarouselItem({ src, idx }) {
+  const [orient, setOrient] = useState("square");
+  const onLoad = (e) => {
+    const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+    const r = w / h;
+    if (r > 1.15) setOrient("landscape");
+    else if (r < 0.87) setOrient("portrait");
+    else setOrient("square");
+  };
+  const tilt = idx % 3 === 0 ? "-rotate-2" : idx % 3 === 1 ? "rotate-1" : "-rotate-1";
 
-  const scrollBy = useCallback((dir) => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    const amt = Math.round(el.clientWidth * 0.9);
-    el.scrollBy({ left: dir * amt, behavior: "smooth" });
-  }, []);
+  const size =
+    orient === "landscape"
+      ? "w-[18rem] h-[12rem] sm:w-[22rem] sm:h-[14rem] md:w-[26rem] md:h-[16rem]"
+      : orient === "portrait"
+      ? "w-[12rem] h-[18rem] sm:w-[14rem] sm:h-[22rem] md:w-[16rem] md:h-[26rem]"
+      : "w-[14rem] h-[14rem] sm:w-[16rem] sm:h-[16rem] md:w-[18rem] md:h-[18rem]";
+
+  return (
+    <li className="shrink-0">
+      <div className={`relative ${size} rounded-xl border-4 border-white shadow-xl transform ${tilt}`}>
+        <img
+          src={src}
+          alt=""
+          draggable={false}
+          onLoad={onLoad}
+          className="absolute inset-0 w-full h-full object-cover select-none rounded-[10px]"
+        />
+      </div>
+    </li>
+  );
+}
+
+/* ---------- Carrossel com rotação contínua ---------- */
+function Carousel({ images, pxPerSec = 60 }) {
+  const scrollerRef = useRef(null);
+  const rafRef = useRef(null);
 
   useEffect(() => {
-    if (!auto) return;
     const el = scrollerRef.current;
     if (!el) return;
-    const id = setInterval(() => {
-      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
-      if (atEnd) el.scrollTo({ left: 0, behavior: "smooth" });
-      else scrollBy(1);
-    }, interval);
-    return () => clearInterval(id);
-  }, [auto, interval, scrollBy]);
+
+    let running = true;
+
+    const preload = async () => {
+      try {
+        await Promise.all(
+          images.map((src) => {
+            const img = new Image();
+            img.src = src;
+            return img.decode ? img.decode().catch(() => {}) : Promise.resolve();
+          })
+        );
+      } catch {}
+    };
+
+    const start = () => {
+      if (!running) return;
+      const t0 = performance.now();
+      const step = (now) => {
+        if (!running) return;
+
+        const half = el.scrollWidth / 2; // lista duplicada
+        if (half <= el.clientWidth) {
+          rafRef.current = requestAnimationFrame(step);
+          return;
+        }
+        const dist = (((now - t0) / 1000) * pxPerSec) % half;
+        el.scrollLeft = dist;
+
+        rafRef.current = requestAnimationFrame(step);
+      };
+      el.scrollLeft = 1; // evita “colar” no 0
+      rafRef.current = requestAnimationFrame(step);
+    };
+
+    (async () => {
+      await preload();
+      start();
+      const onResize = () => { el.scrollLeft = Math.min(el.scrollLeft, el.scrollWidth / 4); };
+      window.addEventListener("resize", onResize);
+      return () => window.removeEventListener("resize", onResize);
+    })();
+
+    return () => { running = false; cancelAnimationFrame(rafRef.current); };
+  }, [images, pxPerSec]);
+
+  const loopImages = [...images, ...images];
 
   return (
     <div className="relative">
       <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-[#2D2C2A] to-transparent z-10" />
       <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[#2D2C2A] to-transparent z-10" />
+
       <div
         ref={scrollerRef}
-        className="w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory px-1 scrollbar-hide [&::-webkit-scrollbar]:hidden"
+        className="w-full overflow-x-auto overflow-y-hidden px-1 [&::-webkit-scrollbar]:hidden"
         aria-roledescription="carousel"
       >
-        <ul className="flex gap-6 md:gap-8 items-stretch py-4">
-          {images.map((src, i) => {
-            const tilt = i % 3 === 0 ? "-rotate-2" : i % 3 === 1 ? "rotate-1" : "-rotate-1";
-            return (
-              <li key={src} className="snap-center shrink-0" style={{ scrollSnapStop: "always" }}>
-                <img
-                  src={src}
-                  alt={`drone-${i + 1}`}
-                  draggable={false}
-                  className={`select-none w-[12rem] h-[12rem] sm:w-[16rem] sm:h-[16rem] md:w-[18rem] md:h-[18rem]
-                    object-cover rounded-xl border-4 border-white shadow-xl transform ${tilt}`}
-                />
-              </li>
-            );
-          })}
+        {/* items centrados verticalmente → horizontais “a meio” das verticais */}
+        <ul className="flex flex-nowrap gap-6 md:gap-8 items-center py-4">
+          {loopImages.map((src, idx) => (
+            <CarouselItem key={`${src}-${idx}`} src={src} idx={idx} />
+          ))}
         </ul>
+      </div>
+
+      {/* Legenda */}
+      <div className="mt-2 flex flex-col items-center text-white/70 text-[11px] tracking-wider select-none">
+        <span aria-hidden className="text-lg leading-none">↑</span>
+        <span>Criações PRISMA</span>
       </div>
     </div>
   );
 }
 
+/* ---------- UI auxiliar ---------- */
 const Check = () => (
   <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0">
     <path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
-
-function Badge({ children }) {
-  return <span className="px-3 py-1 rounded-full text-sm bg-black/5">{children}</span>;
-}
-
-function Stat({ value, label }) {
-  return (
-    <div className="text-center">
-      <div className="text-3xl md:text-4xl font-extrabold">{value}</div>
-      <div className="text-sm opacity-80">{label}</div>
-    </div>
-  );
-}
-
+const Badge = ({ children }) => <span className="px-3 py-1 rounded-full text-sm bg-black/5">{children}</span>;
+const Stat = ({ value, label }) => (
+  <div className="text-center">
+    <div className="text-3xl md:text-4xl font-extrabold">{value}</div>
+    <div className="text-sm opacity-80">{label}</div>
+  </div>
+);
 function Step({ n, title, text }) {
   return (
     <div className="relative pl-10">
@@ -99,7 +157,6 @@ export default function ServicosFotosDrone() {
 
   return (
     <div className="min-h-screen bg-[#2D2C2A] text-white">
-      {/* NAV */}
       <header className="sticky top-0 z-50 bg-[#2D2C2A]">
         <div className="max-w-6xl mx-auto px-6">
           <Navbar navItems={NAV_ITEMS} onOpenMenu={() => setMenuOpen(true)} />
@@ -109,9 +166,9 @@ export default function ServicosFotosDrone() {
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-16">
         {/* 1) Carrossel topo */}
-        <Carousel images={GALLERY} />
+        <Carousel images={GALLERY} pxPerSec={60} />
 
-        {/* 2) Headline + copy */}
+        {/* 2) Headline + copy (mantido) */}
         <section className="mt-10 grid lg:grid-cols-12 gap-8 items-start">
           <div className="lg:col-span-7">
             <p className="uppercase tracking-widest text-white/60 text-xs mb-2">Serviço</p>
@@ -121,8 +178,8 @@ export default function ServicosFotosDrone() {
 
             <p className="mt-4 text-lg text-white/90 max-w-2xl">
               Vistas aéreas que contam a tua história de forma épica — <strong>eventos</strong>,
-              <strong> imobiliário</strong>, <strong>turismo</strong>, <strong>indústria</strong> e <strong>inspeções</strong>. Planeamos cada voo
-              para captar ângulos amplos e detalhes com segurança, qualidade e narrativa.
+              <strong> imobiliário</strong>, <strong>turismo</strong>, <strong>indústria</strong> e <strong>inspeções</strong>.
+              Planeamos cada voo para captar ângulos amplos e detalhes com segurança, qualidade e narrativa.
             </p>
 
             <ul className="mt-6 space-y-3">
@@ -141,16 +198,10 @@ export default function ServicosFotosDrone() {
             </ul>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <a
-                href="/contactos"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold bg-[#d4b996] text-black hover:bg-[#c9ad86] transition"
-              >
+              <a href="/contactos" className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold bg-[#d4b996] text-black hover:bg-[#c9ad86] transition">
                 Pedir proposta <span aria-hidden>→</span>
               </a>
-              <a
-                href="/portfolio#drone"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold border border-white/25 hover:bg-white/10 transition"
-              >
+              <a href="/portfolio#drone" className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold border border-white/25 hover:bg-white/10 transition">
                 Ver trabalhos
               </a>
             </div>
@@ -182,7 +233,7 @@ export default function ServicosFotosDrone() {
           </div>
         </section>
 
-        {/* 3) Processo (focado em segurança) */}
+        {/* 3) Processo */}
         <section className="mt-14">
           <h2 className="text-2xl md:text-3xl font-extrabold mb-6">Como operamos</h2>
           <div className="grid md:grid-cols-3 gap-8">

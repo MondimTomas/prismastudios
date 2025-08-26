@@ -192,6 +192,10 @@ export default function ServicosFotosEventos() {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-16">
         {/* 1) Carrossel topo (sem título) */}
         <Carousel images={GALLERY} />
+        <div className="mt-2 flex flex-col items-center text-white/70 text-[11px] tracking-wider select-none">
+  <span aria-hidden className="text-lg leading-none">↑</span>
+  <span>Criações PRISMA</span>
+</div>
 
         {/* 2) Hero textual com cartão lateral */}
         <section className="mt-10 grid lg:grid-cols-12 gap-8 items-start">
