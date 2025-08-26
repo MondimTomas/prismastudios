@@ -1,5 +1,5 @@
 // src/pages/ServicosFotosRestauracao.jsx
-import { useRef, useCallback, useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import MobileMenu from "../components/MobileMenu";
 import Footer from "../components/Footer";
@@ -7,32 +7,96 @@ import BrandStrip from "../components/BrandStrip";
 import { NAV_ITEMS } from "../navItems";
 
 const GALLERY = [
-  "/rest1.jpg","/rest2.jpg","/rest3.jpg","/rest4.jpg","/rest5.jpg",
-  "/rest6.jpg","/rest7.jpg","/rest8.jpg","/rest9.jpg","/rest10.jpg",
+  "/restauracao1.jpg","/restauracao2.jpg","/restauracao3.jpg","/restauracao4.jpg","/restauracao5.jpg",
+  "/restauracao6.jpg","/restauracao7.jpg","/restauracao8.jpg","/restauracao9.jpg","/restauracao10.jpg",
 ];
 
-/* ---------- Carrossel auto-play ---------- */
-function Carousel({ images, auto = true, interval = 2600 }) {
-  const scrollerRef = useRef(null);
+/* ---------- item com detecção de orientação ---------- */
+function CarouselItem({ src, idx }) {
+  const [orient, setOrient] = useState("square");
+  const handleLoad = (e) => {
+    const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+    const r = w / h;
+    if (r > 1.15) setOrient("landscape");
+    else if (r < 0.87) setOrient("portrait");
+    else setOrient("square");
+  };
+  const tilt = idx % 3 === 0 ? "-rotate-2" : idx % 3 === 1 ? "rotate-1" : "-rotate-1";
 
-  const scrollBy = useCallback((dir) => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    const amt = Math.round(el.clientWidth * 0.9);
-    el.scrollBy({ left: dir * amt, behavior: "smooth" });
-  }, []);
+  const size =
+    orient === "landscape"
+      ? "w-[18rem] h-[12rem] sm:w-[22rem] sm:h-[14rem] md:w-[26rem] md:h-[16rem]"
+      : orient === "portrait"
+      ? "w-[12rem] h-[18rem] sm:w-[14rem] sm:h-[22rem] md:w-[16rem] md:h-[26rem]"
+      : "w-[14rem] h-[14rem] sm:w-[16rem] sm:h-[16rem] md:w-[18rem] md:h-[18rem]";
+
+  return (
+    <li className="shrink-0">
+      <div className={`relative ${size} rounded-xl border-4 border-white shadow-xl transform ${tilt}`}>
+        <img
+          src={src}
+          alt=""
+          draggable={false}
+          onLoad={handleLoad}
+          className="absolute inset-0 w-full h-full object-cover select-none rounded-[10px]"
+        />
+      </div>
+    </li>
+  );
+}
+
+/* ---------- carrossel com rotação contínua ---------- */
+function Carousel({ images, pxPerSec = 60 }) {
+  const scrollerRef = useRef(null);
+  const rafRef = useRef(null);
 
   useEffect(() => {
-    if (!auto) return;
     const el = scrollerRef.current;
     if (!el) return;
-    const id = setInterval(() => {
-      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
-      if (atEnd) el.scrollTo({ left: 0, behavior: "smooth" });
-      else scrollBy(1);
-    }, interval);
-    return () => clearInterval(id);
-  }, [auto, interval, scrollBy]);
+    let running = true;
+
+    const loadAll = async () => {
+      try {
+        await Promise.all(
+          images.map((src) => {
+            const img = new Image();
+            img.src = src;
+            return img.decode ? img.decode().catch(() => {}) : Promise.resolve();
+          })
+        );
+      } catch {}
+    };
+
+    const start = () => {
+      if (!running) return;
+      const t0 = performance.now();
+      const step = (now) => {
+        if (!running) return;
+        const half = el.scrollWidth / 2; // lista duplicada
+        if (half <= el.clientWidth) {
+          rafRef.current = requestAnimationFrame(step);
+          return;
+        }
+        const dist = (((now - t0) / 1000) * pxPerSec) % half;
+        el.scrollLeft = dist;
+        rafRef.current = requestAnimationFrame(step);
+      };
+      el.scrollLeft = 1; // evita “colar” no 0
+      rafRef.current = requestAnimationFrame(step);
+    };
+
+    (async () => {
+      await loadAll();
+      start();
+      const onResize = () => { el.scrollLeft = Math.min(el.scrollLeft, el.scrollWidth / 4); };
+      window.addEventListener("resize", onResize);
+      return () => window.removeEventListener("resize", onResize);
+    })();
+
+    return () => { running = false; cancelAnimationFrame(rafRef.current); };
+  }, [images, pxPerSec]);
+
+  const loopImages = [...images, ...images];
 
   return (
     <div className="relative">
@@ -40,24 +104,20 @@ function Carousel({ images, auto = true, interval = 2600 }) {
       <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[#2D2C2A] to-transparent z-10" />
       <div
         ref={scrollerRef}
-        className="w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory px-1 scrollbar-hide [&::-webkit-scrollbar]:hidden"
+        className="w-full overflow-x-auto overflow-y-hidden px-1 [&::-webkit-scrollbar]:hidden"
         aria-roledescription="carousel"
       >
-        <ul className="flex gap-6 md:gap-8 items-stretch py-4">
-          {images.map((src, i) => {
-            const tilt = i % 3 === 0 ? "-rotate-2" : i % 3 === 1 ? "rotate-1" : "-rotate-1";
-            return (
-              <li key={src} className="snap-center shrink-0" style={{ scrollSnapStop: "always" }}>
-                <img
-                  src={src}
-                  alt={`restauracao-${i + 1}`}
-                  draggable={false}
-                  className={`select-none w-[12rem] h-[12rem] sm:w-[16rem] sm:h-[16rem] md:w-[18rem] md:h-[18rem] object-cover rounded-xl border-4 border-white shadow-xl transform ${tilt}`}
-                />
-              </li>
-            );
-          })}
+        <ul className="flex flex-nowrap gap-6 md:gap-8 items-center py-4">
+          {loopImages.map((src, idx) => (
+            <CarouselItem key={`${src}-${idx}`} src={src} idx={idx} />
+          ))}
         </ul>
+      </div>
+
+      {/* legenda */}
+      <div className="mt-2 flex flex-col items-center text-white/70 text-[11px] tracking-wider select-none">
+        <span aria-hidden className="text-lg leading-none">↑</span>
+        <span>Criações PRISMA</span>
       </div>
     </div>
   );
@@ -68,20 +128,13 @@ const Check = () => (
     <path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
-
-function Badge({ children }) {
-  return <span className="px-3 py-1 rounded-full text-sm bg-black/5">{children}</span>;
-}
-
-function Stat({ value, label }) {
-  return (
-    <div className="text-center">
-      <div className="text-3xl md:text-4xl font-extrabold">{value}</div>
-      <div className="text-sm opacity-80">{label}</div>
-    </div>
-  );
-}
-
+const Badge = ({ children }) => <span className="px-3 py-1 rounded-full text-sm bg-black/5">{children}</span>;
+const Stat = ({ value, label }) => (
+  <div className="text-center">
+    <div className="text-3xl md:text-4xl font-extrabold">{value}</div>
+    <div className="text-sm opacity-80">{label}</div>
+  </div>
+);
 function Step({ n, title, text }) {
   return (
     <div className="relative pl-10">
@@ -97,7 +150,6 @@ export default function ServicosFotosRestauracao() {
 
   return (
     <div className="min-h-screen bg-[#2D2C2A] text-white">
-      {/* NAV */}
       <header className="sticky top-0 z-50 bg-[#2D2C2A]">
         <div className="max-w-6xl mx-auto px-6">
           <Navbar navItems={NAV_ITEMS} onOpenMenu={() => setMenuOpen(true)} />
@@ -107,7 +159,7 @@ export default function ServicosFotosRestauracao() {
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-16">
         {/* 1) Carrossel topo */}
-        <Carousel images={GALLERY} />
+        <Carousel images={GALLERY} pxPerSec={60} />
 
         {/* 2) Headline + copy */}
         <section className="mt-10 grid lg:grid-cols-12 gap-8 items-start">
@@ -119,18 +171,17 @@ export default function ServicosFotosRestauracao() {
 
             <p className="mt-4 text-lg text-white/90 max-w-2xl">
               Criamos imagens que definem (ou elevam) a identidade visual do teu restaurante —
-              desde <strong>pratos heróis</strong> a <strong>ambiente</strong>, equipa e detalhes.
-              Ideal para novas casas que querem entrar fortes no mercado ou marcas consolidadas
-              que procuram mais consistência e qualidade na presença digital.
+              desde <strong>pratos heróis</strong> a <strong>ambiente</strong>, equipa e detalhes. Ideal para novas casas
+              que querem entrar fortes no mercado ou marcas consolidadas que procuram consistência na presença digital.
             </p>
 
             <ul className="mt-6 space-y-3">
               {[
                 "Sessões em serviço ou produzidas (food styling / set) para pratos, drinks e sobremesas.",
                 "Ambiente, interiores, equipa & chef, cozinha em ação — storytelling completo.",
-                "Luz natural ou iluminação de estúdio portátil para um look consistente e apetite appeal.",
+                "Luz natural ou iluminação de estúdio portátil para um look consistente e appetite appeal.",
                 "Entrega multi-formato: 1:1, 4:5 e 16:9 para Instagram, site, apps de entrega e anúncios.",
-                "Opções de reels/clips curtos como add-on para social (se precisares video).",
+                "Opções de reels/clips curtos como add-on (se precisares vídeo).",
               ].map((t) => (
                 <li key={t} className="flex items-start gap-3">
                   <span className="text-[#d4b996] mt-0.5"><Check /></span>
@@ -140,16 +191,10 @@ export default function ServicosFotosRestauracao() {
             </ul>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <a
-                href="/contactos"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold bg-[#d4b996] text-black hover:bg-[#c9ad86] transition"
-              >
+              <a href="/contactos" className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold bg-[#d4b996] text-black hover:bg-[#c9ad86] transition">
                 Contacte-nos <span aria-hidden>→</span>
               </a>
-              <a
-                href="/portfolio#restauracao"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold border border-white/25 hover:bg-white/10 transition"
-              >
+              <a href="/portfolio#restauracao" className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold border border-white/25 hover:bg-white/10 transition">
                 Ver trabalhos
               </a>
             </div>
@@ -168,9 +213,8 @@ export default function ServicosFotosRestauracao() {
               </div>
 
               <p className="leading-relaxed">
-                Prévias em 48–72h para seleção; edição final em 5–10 dias úteis. Galeria online com
-                download em alta + versões otimizadas para web/social e capas UberEats/Glovo/Takeaway.
-                Cores consistentes com branding e manual de uso opcional.
+                Prévias em 48–72h para seleção; edição final em 5–10 dias úteis. Galeria online com download em alta +
+                versões otimizadas para web/social e capas UberEats/Glovo/Takeaway. Cores consistentes com branding.
               </p>
 
               <div className="mt-6 grid grid-cols-3 gap-4">
@@ -186,9 +230,9 @@ export default function ServicosFotosRestauracao() {
         <section className="mt-14">
           <h2 className="text-2xl md:text-3xl font-extrabold mb-6">Como trabalhamos</h2>
           <div className="grid md:grid-cols-3 gap-8">
-            <Step n="1" title="Briefing & Moodboard" text="Posicionamento da marca, cardápio prioritário, referências visuais e formatos necessários." />
+            <Step n="1" title="Briefing & Moodboard" text="Posicionamento da marca, cardápio prioritário e referências visuais." />
             <Step n="2" title="Produção On-site" text="Set com luz controlada e food styling. Fotografia de pratos, ambiente e equipa." />
-            <Step n="3" title="Pós-produção & Entrega" text="Curadoria, edição, export multi-formato e galeria online com licenças de uso." />
+            <Step n="3" title="Pós-produção & Entrega" text="Curadoria, edição, export multi-formato e galeria online com licenças." />
           </div>
         </section>
 

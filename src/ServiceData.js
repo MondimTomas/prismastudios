@@ -5,7 +5,7 @@ export const SERVICES = {
     { title: "Desporto",      img: "/f_desporto.jpeg",      href: "/servicos/fotografia/desporto" },
     { title: "Retratos",      img: "/f_retratos.jpeg",     href: "/servicos/fotografia/retratos" },
     { title: "Restauração",   img: "/f_restauracao.jpeg",   href: "/servicos/fotografia/restauracao" },
-    { title: "Publicidade",   img: "/f_publicidade.jpeg",   href: "/servicos/fotografia/publicidade" },
+   // { title: "Publicidade",   img: "/f_publicidade.jpeg",   href: "/servicos/fotografia/publicidade" },
     { title: "Drone",         img: "/f_drones.jpeg",        href: "/servicos/fotografia/drone" },
     { title: "Imobiliárias",  img: "/f_imobiliarias.jpeg",   href: "/servicos/fotografia/imobiliarias" },
   ],
