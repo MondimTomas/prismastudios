@@ -62,9 +62,9 @@ function VideoModal({ open, onClose, video }) {
     ? toVimeoEmbed(video.src)
     : null;
 
-  const frameClass = isPortrait
-    ? "aspect-[9/16] h-[85vh] max-h-[85vh] max-w-[90vw] mx-auto"
-    : "aspect-video w-full";
+const frameClass = isPortrait
+  ? "aspect-[9/16] h-[80vh] md:h-[85vh] max-h-[85vh] max-w-[420px] w-full mx-auto"
+  : "aspect-video w-full";
 
   return (
     <div
@@ -115,13 +115,14 @@ function VideoModal({ open, onClose, video }) {
 }
 
 
-/* ---------- Card + Carrossel ---------- */
 function VideoCard({ v, onPlay }) {
-  const aspectClass = v.aspect === "portrait" ? "aspect-[9/16]" : "aspect-video";
+  // 👇 sempre 16:9 para thumbs
+  const aspectClass = "aspect-video";
+  const widthClass = "w-[16rem] md:w-[20rem]";
 
   return (
-    <div className="w-[16rem] md:w-[20rem] shrink-0">
-      <div className={`relative ${aspectClass} rounded-xl overflow-hidden ring-1 ring-white/10 shadow-[0_10px_30px_rgba(0,0,0,.35)] group`}>
+    <div className={`${widthClass} shrink-0`}>
+      <div className={`relative ${aspectClass} rounded-xl overflow-hidden ring-1 ring-white/10 shadow-[0_10px_30px_rgba(0,0,0,.35)] group bg-black/20`}>
         <img
           src={v.thumb}
           alt={v.title}
@@ -129,24 +130,32 @@ function VideoCard({ v, onPlay }) {
           loading="lazy"
           decoding="async"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent pointer-events-none" />
+
         <button
           onClick={() => onPlay(v)}
-          className="absolute inset-0 m-auto w-14 h-14 rounded-full bg-white/90 text-black flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"
+          className="absolute inset-0 m-auto w-12 h-12 md:w-14 md:h-14 rounded-full bg-white/90 text-black flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"
           aria-label={`Reproduzir ${v.title}`}
         >
           ▶
         </button>
+
         <div className="absolute top-2 left-2 flex gap-2">
-          {v.platform && <span className="px-2 py-0.5 rounded-full text-xs bg-black/60 text-white/90">{v.platform}</span>}
-          {v.duration && <span className="px-2 py-0.5 rounded-full text-xs bg-black/60 text-white/90">{v.duration}</span>}
+          {v.platform && <span className="px-2 py-0.5 rounded-full text-[10px] md:text-xs bg-black/60 text-white/90">{v.platform}</span>}
+          {v.duration && <span className="px-2 py-0.5 rounded-full text-[10px] md:text-xs bg-black/60 text-white/90">{v.duration}</span>}
         </div>
       </div>
-      <div className="mt-3">
-        <button onClick={() => onPlay(v)} className="text-left text-base md:text-lg font-semibold hover:underline" title="Ver vídeo">
+
+      <div className="mt-2 md:mt-3">
+        <button
+          onClick={() => onPlay(v)}
+          className="text-left text-sm md:text-base font-semibold hover:underline line-clamp-2"
+          title={v.title}
+        >
           {v.title}
         </button>
-        <div className="text-sm text-white/70">Clica para assistir em tamanho grande</div>
+        <div className="text-xs md:text-sm text-white/70">Clica para assistir em tamanho grande</div>
       </div>
     </div>
   );
@@ -191,7 +200,8 @@ function VideoCarousel({ videos, onPlay, auto = true, interval = 2800 }) {
         <button type="button" onClick={() => scrollBy(1)} className="mx-2 md:mx-3 rounded-full bg-white/85 hover:bg-white shadow-lg backdrop-blur px-3 py-3 text-black" aria-label="Seguinte">→</button>
       </div>
       <div ref={ref} className="w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory px-1 scrollbar-hide [&::-webkit-scrollbar]:hidden" aria-roledescription="carousel">
-        <ul className="flex gap-6 md:gap-8 items-stretch py-4">
+       <ul className="flex gap-3 md:gap-5 items-stretch py-2 md:py-3">
+
           {videos.map((v) => (
             <li key={v.title} className="snap-start" style={{ scrollSnapStop: "always" }}>
               <VideoCard v={v} onPlay={onPlay} />

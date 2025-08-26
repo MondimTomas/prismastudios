@@ -1,9 +1,11 @@
 // src/pages/MarketingRedesSociais.jsx
 import { useState } from "react";
+import { motion } from "framer-motion";   // ⬅️ ESTE
 import Navbar from "../components/Navbar";
 import MobileMenu from "../components/MobileMenu";
 import Footer from "../components/Footer";
 import { NAV_ITEMS } from "../navItems";
+
 
 /* ----------------- Helpers de animação ----------------- */
 const fadeUp = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0, transition: { duration: 0.6 } } };
