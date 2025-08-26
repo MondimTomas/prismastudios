@@ -18,7 +18,12 @@ import ServicosVideoYouTube from "./pages/ServicosVideoYoutube";
 import MarketingRedesSociais from "./pages/MarketingRedesSociais";
 import MarketingDesenvolvimentoWeb from "./pages/MarketingDesenvolvimentoWeb";
 import MarketingLeads from "./pages/MarketingLeads";
-<Route path="/servicos/marketing/leads" element={<MarketingLeads />} />
+import StudioPage from "./pages/StudioPage";
+import AluguerPage from "./pages/AluguerPage";
+import BlogPage from "./pages/BlogPage";           // 👈 novo
+import BlogPostPage from "./pages/BlogPostPage";
+import ContactPage from "./pages/ContactPage";
+
 
 export default function App() {
   return (
@@ -56,6 +61,12 @@ export default function App() {
         <Route path="/servicos/video/youtube" element={<ServicosVideoYouTube />} />
           <Route path="/servicos/marketing/redes-sociais" element={<MarketingRedesSociais />} />
           <Route path="/servicos/marketing/web" element={<MarketingDesenvolvimentoWeb />} />
+          <Route path="/servicos/marketing/leads" element={<MarketingLeads />} />
+            <Route path="/estudio" element={<StudioPage />} />
+              <Route path="/aluguer" element={<AluguerPage />} />
+                    <Route path="/blog" element={<BlogPage />} />
+      <Route path="/blog/:slug" element={<BlogPostPage />} />
+         <Route path="/contactos" element={<ContactPage />} /> 
     </Routes>
   );
 }
