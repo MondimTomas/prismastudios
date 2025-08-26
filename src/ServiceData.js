@@ -13,7 +13,7 @@ export const SERVICES = {
   video: [
     { title: "Eventos",      img: "/v_eventos.jpeg",       href: "/servicos/video/eventos" },
     { title: "Imobiliária",  img: "/v_imobiliaria.jpeg",  href: "/servicos/video/imobiliario" },
-    { title: "DJ Sets",      img: "/v_dj.jpeg",           href: "/servicos/video/dj-sets" },
+    //{ title: "DJ Sets",      img: "/v_dj.jpeg",           href: "/servicos/video/dj-sets" },
     { title: "Desporto",     img: "/v_desporto.jpeg",      href: "/servicos/video/desporto" },
     { title: "YouTube",      img: "/v_youtube.jpeg",      href: "/servicos/video/youtube" },
   ],
