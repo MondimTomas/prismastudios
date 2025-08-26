@@ -1,12 +1,38 @@
+// src/components/MobileMenu.jsx
 import { useState } from "react";
+import { Link, useLocation } from "react-router-dom"; // 👈 usar Link + pathname
 import SocialIcons from "./SocialIcons";
 import { SERVICES_COLS } from "../servicesData";
 
 export default function MobileMenu({ open, onClose, navItems }) {
   const [openServices, setOpenServices] = useState(false);
+  const { pathname } = useLocation();
   if (!open) return null;
 
   const isServices = (label) => label.toLowerCase() === "serviços";
+  const isRoute = (href) => typeof href === "string" && href.startsWith("/");
+
+  // Transforma "#id" → "/servicos#id" se estiveres fora de /servicos
+  const normalizeServiceHref = (href) => {
+    if (!href) return href;
+    if (href.startsWith("#")) {
+      return pathname === "/servicos" ? href : `/servicos${href}`;
+    }
+    return href;
+  };
+
+  // Click handler para itens de serviço (suporte a scroll suave quando já estás em /servicos)
+  const onServiceClick = (e, href) => {
+    const isHashHere = href.startsWith("#") && pathname === "/servicos";
+    if (isHashHere) {
+      e.preventDefault();
+      onClose?.();
+      const el = document.querySelector(href);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    onClose?.();
+  };
 
   return (
     <div
@@ -31,31 +57,41 @@ export default function MobileMenu({ open, onClose, navItems }) {
             if (!isServices(item.label)) {
               return (
                 <li key={item.href}>
-                  <a
-                    href={item.href}
-                    onClick={onClose}
-                    className="hover:text-gray-300"
-                  >
-                    {item.label}
-                  </a>
+                  {isRoute(item.href) ? (
+                    <Link
+                      to={item.href}
+                      onClick={onClose}
+                      className="hover:text-gray-300"
+                    >
+                      {item.label}
+                    </Link>
+                  ) : (
+                    <a
+                      href={item.href}
+                      onClick={onClose}
+                      className="hover:text-gray-300"
+                    >
+                      {item.label}
+                    </a>
+                  )}
                 </li>
               );
             }
 
-            // Serviços: texto navega, seta abre/recolhe
+            // Serviços: texto navega para /servicos, seta abre/recolhe o painel
             return (
               <li key={item.href}>
                 <div className="flex items-center justify-between">
-                  {/* 👉 tocar no texto navega para /servicos */}
-                  <a
-                    href={item.href}
+                  {/* Tocar no texto navega para /servicos */}
+                  <Link
+                    to="/servicos"
                     onClick={onClose}
                     className="hover:text-gray-300"
                   >
                     {item.label}
-                  </a>
+                  </Link>
 
-                  {/* 👉 tocar na seta apenas expande/recolhe */}
+                  {/* Tocar na seta só expande/recolhe */}
                   <button
                     type="button"
                     className="p-2 -mr-2"
@@ -92,17 +128,31 @@ export default function MobileMenu({ open, onClose, navItems }) {
                         {col.title}
                       </h4>
                       <ul className="space-y-2">
-                        {col.items.map((sub) => (
-                          <li key={sub.href}>
-                            <a
-                              href={sub.href}
-                              onClick={onClose}
-                              className="block text-white/80 text-base hover:text-white"
-                            >
-                              {sub.label}
-                            </a>
-                          </li>
-                        ))}
+                        {col.items.map((sub) => {
+                          const resolved = normalizeServiceHref(sub.href);
+                          const internal = isRoute(resolved) || resolved.startsWith("#");
+                          return (
+                            <li key={sub.href}>
+                              {internal ? (
+                                <Link
+                                  to={resolved.startsWith("#") ? pathname + resolved : resolved}
+                                  className="block text-white/80 text-base hover:text-white"
+                                  onClick={(e) => onServiceClick(e, resolved.startsWith("#") ? resolved : (resolved.split("#")[1] ? `#${resolved.split("#")[1]}` : resolved))}
+                                >
+                                  {sub.label}
+                                </Link>
+                              ) : (
+                                <a
+                                  href={resolved}
+                                  className="block text-white/80 text-base hover:text-white"
+                                  onClick={onClose}
+                                >
+                                  {sub.label}
+                                </a>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                   ))}
