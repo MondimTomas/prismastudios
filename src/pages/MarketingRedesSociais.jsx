@@ -1,6 +1,5 @@
 // src/pages/MarketingRedesSociais.jsx
 import { useState } from "react";
-import { motion } from "framer-motion";
 import Navbar from "../components/Navbar";
 import MobileMenu from "../components/MobileMenu";
 import Footer from "../components/Footer";
