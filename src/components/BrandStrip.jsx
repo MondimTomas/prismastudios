@@ -10,6 +10,8 @@ export default function BrandStrip({ speed = 60 }) { // px/seg
     "/logo_ips.png",
     "/logo_dmevents.png",
     "/logo_tecnico.png",
+     "/logosetmotors.svg",
+     "/michael-page.png"
     // adiciona mais aqui…
   ];
 

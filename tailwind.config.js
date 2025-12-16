@@ -6,6 +6,9 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Manrope', 'sans-serif'], // ✅ adiciona aqui a fonte
+      },
       keyframes: {
         shake: {
           '0%, 100%': { transform: 'translateX(0)' },

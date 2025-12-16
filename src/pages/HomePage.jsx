@@ -16,23 +16,39 @@ export default function HomePage() {
 
   return (
     <div className="relative w-full min-h-[100svh] overflow-hidden text-white bg-black">
+      
       {/* HERO */}
       <div className="relative w-full h-[100svh]">
         <BackgroundVideo />
+
+        {/* Conteúdo central */}
         <HeroContent />
-        <div className="absolute inset-0 z-30 flex flex-col justify-between">
-          <Navbar onOpenMenu={() => setMenuOpen(true)} navItems={NAV_ITEMS} />
+
+        {/* Navbar + seta (não bloqueiam o hero) */}
+        <div className="absolute inset-0 z-30 flex flex-col justify-between ">
+          <Navbar
+            onOpenMenu={() => setMenuOpen(true)}
+            navItems={NAV_ITEMS}
+            className="pointer-events-auto"
+          />
+
           <div className="flex justify-center mb-8 animate-bounce">
             <span className="text-3xl">↓</span>
           </div>
         </div>
-        <MobileMenu open={menuOpen} onClose={() => setMenuOpen(false)} navItems={NAV_ITEMS} />
+
+        {/* Menu mobile */}
+        <MobileMenu
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          navItems={NAV_ITEMS}
+        />
       </div>
 
-      {/* Secções */}
+      {/* RESTO DO SITE */}
       <AboutSection />
       <PortfolioSection />
-       <BrandStrip />
+      <BrandStrip />
       <VideoServicesSection />
       <Footer navItems={NAV_ITEMS} />
     </div>
