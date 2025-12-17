@@ -90,15 +90,17 @@ export default function VideoServicesSection() {
         </div>
 
         {/* CTA */}
-        <div className="mt-10 flex justify-center">
-          <a
-            href="#portfolio"
-            className="px-6 py-3 rounded-full border-2 border-[#A78C79] text-[#A78C79] font-semibold
-                       hover:bg-[#A78C79] hover:text-black transition"
-          >
-            Ver Portfólio
-          </a>
-        </div>
+       {/* CTA */}
+<div className="mt-10 flex justify-center">
+  <a
+    href="/portfolio"
+    className="px-6 py-3 rounded-full border-2 border-[#A78C79] text-[#A78C79] font-semibold
+               hover:bg-[#A78C79] hover:text-black transition"
+  >
+    Ver Portfólio
+  </a>
+</div>
+
       </div>
     </section>
   );
