@@ -42,7 +42,7 @@ export default function PortfolioGallery({ category }) {
             </div>
             <div className="px-4 py-3 text-[#2D2C2A] flex items-center justify-between">
               <h3 className="font-semibold">{it.title}</h3>
-              <span className="text-[#A78C79] group-hover:translate-x-0.5 transition">→</span>
+              <span className="text-[#A78C79] group-hover:translate-x-0.5 transition">seta</span>
             </div>
           </Wrapper>
         );
