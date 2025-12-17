@@ -27,7 +27,6 @@ export const SERVICES_COLS = [
     items: [
       { label: "Redes Sociais",       href: "/servicos/marketing/redes-sociais" },
       { label: "Desenvolvimento Web", href: "/servicos/marketing/web" },
-      { label: "Geração de Leads",    href: "/servicos/marketing/leads" },
     ],
   },
 ];

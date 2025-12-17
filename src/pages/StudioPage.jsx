@@ -65,12 +65,12 @@ export default function StudioPage() {
                 <li>• Equipa jovem, técnica e criativa</li>
                 <li>• Localização central em Setúbal</li>
               </ul>
-              <a
-                href="/#contactos"
-                className="inline-block mt-6 px-5 py-2.5 rounded-full bg-[#d4b996] text-black font-semibold hover:bg-[#c2a87f] transition"
-              >
-                Marca uma visita
-              </a>
+            <a
+  href="/contactos"
+  className="inline-block mt-6 px-5 py-2.5 rounded-full bg-[#d4b996] text-black font-semibold hover:bg-[#c2a87f] transition"
+>
+  Marca uma visita
+</a>
             </div>
           </div>
         </section>

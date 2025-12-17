@@ -21,6 +21,5 @@ export const SERVICES = {
   marketing: [
     { title: "Redes Sociais",        img: "/m_redes.jpeg",   href: "/servicos/marketing/redes-sociais" },
     { title: "Desenvolvimento Web",  img: "/m_web.jpeg",    href: "/servicos/marketing/web" },
-    { title: "Geração de Leads",     img: "/m_leads.jpeg",  href: "/servicos/marketing/leads" },
   ],
 };

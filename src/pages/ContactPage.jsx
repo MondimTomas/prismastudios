@@ -50,28 +50,25 @@ export default function ContactPage() {
     setTouched((t) => ({ ...t, [name]: true }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setTouched({ email: true }); // força validação do único obrigatório
+const handleSubmit = (e) => {
+  e.preventDefault();
+  setTouched({ email: true });
 
-    if (emailError) return;
+  if (emailError) return;
+  if (form.botField) return; // honeypot
 
-    // 👉 Simulação de envio (substitui por request à tua API quando quiseres)
-    console.log("Contact form:", form);
+  const subjectLabel = SUBJECTS.find(s => s.value === form.subject)?.label || "Contacto";
 
-    // Exemplo de mailto (opcional). Podes remover se fores usar API:
-    // const mailto = new URL(`mailto:contacto@prismastudios.pt`);
-    // mailto.searchParams.set("subject", `[PRISMA] ${SUBJECTS.find(s => s.value===form.subject)?.label || "Contacto"}`);
-    // mailto.searchParams.set("body",
-    //   `Nome: ${form.name}\nEmail: ${form.email}\nTelefone: ${form.phone}\n\n${form.message}`.slice(0, 1800)
-    // );
-    // window.location.href = mailto.toString();
+  const mailto = new URL("mailto:prismastudiospt@gmail.com");
+  mailto.searchParams.set("subject", `[PRISMA] ${subjectLabel}`);
+  mailto.searchParams.set(
+    "body",
+    `Nome: ${form.name}\nEmail: ${form.email}\nTelefone: ${form.phone}\n\nMensagem:\n${form.message}`.slice(0, 1800)
+  );
 
-    setSent(true);
-    // limpa o formulário
-    setForm({ subject: "", name: "", email: "", phone: "", message: "", botField: "" });
-    setTouched({});
-  };
+  window.location.href = mailto.toString();
+};
+
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: BRAND_BG, color: TEXT_MAIN }}>
@@ -250,7 +247,8 @@ export default function ContactPage() {
         {/* Info alternativa */}
         <section className="mt-8 text-white/80 text-sm">
           <p>
-            Prefere e-mail? Envia para <span className="font-medium text-white">contacto@prismastudios.pt</span>.
+           Prefere e-mail? Envia para <span className="font-medium text-white">prismastudiospt@gmail.com</span>.
+
           </p>
         </section>
       </main>

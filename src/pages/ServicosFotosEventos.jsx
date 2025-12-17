@@ -193,109 +193,85 @@ export default function ServicosFotosEventos() {
         {/* 1) Carrossel topo (sem título) */}
         <Carousel images={GALLERY} />
         <div className="mt-2 flex flex-col items-center text-white/70 text-[11px] tracking-wider select-none">
-  <span aria-hidden className="text-lg leading-none">↑</span>
-  <span>Criações PRISMA</span>
-</div>
+          <span aria-hidden className="text-lg leading-none">↑</span>
+          <span>Criações PRISMA</span>
+        </div>
 
         {/* 2) Hero textual com cartão lateral */}
-        <section className="mt-10 grid lg:grid-cols-12 gap-8 items-start">
-          {/* Texto principal */}
-          <div className="lg:col-span-7">
-            <p className="uppercase tracking-widest text-white/60 text-xs mb-2">Serviço</p>
-            <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
-              Fotografia de <span className="text-[#d4b996]">Eventos</span>
-            </h1>
-            <p className="mt-4 text-lg text-white/90 max-w-2xl">
-              Cobertura integral do teu evento com uma equipa ajustada à escala —
-              de <strong>1 a vários fotógrafos</strong>. Abordagem discreta, foco em <em>storytelling</em> e
-              equipamentos de topo para garantir um registo autêntico e com impacto.
-            </p>
+    <section className="mt-10 grid lg:grid-cols-12 gap-8 items-start">
+  {/* Texto principal */}
+  <div className="lg:col-span-7">
+    <p className="uppercase tracking-widest text-white/60 text-xs mb-2">Serviço</p>
+    <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
+      Fotografia de <span className="text-[#d4b996]">Eventos</span>
+    </h1>
+    <p className="mt-4 text-lg text-white/90 max-w-2xl">
+      Cobertura integral do teu evento com uma equipa ajustada à escala —
+      de <strong>1 a vários fotógrafos</strong>. Abordagem discreta, foco em{" "}
+      <em>storytelling</em> e equipamentos de topo para garantir um registo
+      autêntico e com impacto.
+    </p>
 
-            <ul className="mt-6 space-y-3">
-              {[
-                "Planeamento dos momentos-chave e logística em conjunto contigo.",
-                "Cobertura multiângulo com lentes rápidas e iluminação quando necessário.",
-                "Edição e cor consistentes, alinhadas à tua marca.",
-                "Pré-vias para redes sociais em 24–48h. Galeria final em 3–7 dias úteis.",
-                "Galeria privada em alta + versões otimizadas para web/socials.",
-              ].map((t) => (
-                <li key={t} className="flex items-start gap-3">
-                  <span className="text-[#d4b996] mt-0.5"><Check /></span>
-                  <span className="text-white/90">{t}</span>
-                </li>
-              ))}
-            </ul>
+    <ul className="mt-6 space-y-3">
+      {[
+        "Planeamento dos momentos-chave e logística em conjunto contigo.",
+        "Cobertura multiângulo com lentes rápidas e iluminação quando necessário.",
+        "Edição e cor consistentes, alinhadas à tua marca.",
+        "Pré-vias para redes sociais em 24–48h. Galeria final em 3–7 dias úteis.",
+        "Galeria privada em alta + versões otimizadas para web/socials.",
+      ].map((t) => (
+        <li key={t} className="flex items-start gap-3">
+          <span className="text-[#d4b996] mt-0.5">
+            <Check />
+          </span>
+          <span className="text-white/90">{t}</span>
+        </li>
+      ))}
+    </ul>
 
-            {/* CTAs */}
-            <div className="mt-8 flex flex-wrap gap-3">
-              <a
-                href="/contactos"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold
-                           bg-[#d4b996] text-black hover:bg-[#c9ad86] transition"
-              >
-                Contacte-nos <span aria-hidden>→</span>
-              </a>
-              <a
-                href="/portfolio#eventos"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold
-                           border border-white/25 hover:bg-white/10 transition"
-              >
-                Ver trabalhos
-              </a>
-            </div>
-          </div>
+    {/* CTAs */}
+    <div className="mt-8 flex flex-wrap gap-3">
+      <a
+        href="/contactos"
+        className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold
+                   bg-[#d4b996] text-black hover:bg-[#c9ad86] transition"
+      >
+        Contacte-nos <span aria-hidden>→</span>
+      </a>
+      <a
+        href="/portfolio#eventos"
+        className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold
+                   border border-white/25 hover:bg-white/10 transition"
+      >
+        Ver trabalhos
+      </a>
+    </div>
+  </div>
 
-          {/* Cartão lateral com badges + stats */}
-          <div className="lg:col-span-5">
-            <div className="relative rounded-2xl bg-[#EBEBEB] text-[#2D2C2A] p-6 md:p-7 ring-1 ring-black/5 shadow-[0_12px_30px_rgba(0,0,0,.25)] overflow-hidden">
-              {/* shape decorativa */}
-              <div className="absolute -top-20 -right-16 w-56 h-56 rounded-full bg-[#d4b996]/30 blur-3xl pointer-events-none" />
-              <h3 className="text-xl font-extrabold mb-3">Como trabalhamos</h3>
+  {/* Processo à direita */}
+  <div className="lg:col-span-5 lg:pt-10 mt-12 lg:mt-0">
+    <h2 className="text-2xl md:text-3xl font-extrabold mb-6">O nosso processo</h2>
 
-              <div className="flex flex-wrap gap-2 mb-5">
-                {["1–3 fotógrafos", "Entrega 24–48h", "Galeria online", "Licenças à medida"].map((b) => (
-                  <span key={b} className="px-3 py-1 rounded-full text-sm bg-black/5">
-                    {b}
-                  </span>
-                ))}
-              </div>
+    <div className="space-y-8">
+      <Step
+        n="1"
+        title="Preparação"
+        text="Call de alinhamento, guião de momentos, acessos e logística. Chegamos cedo para reconhecimento."
+      />
+      <Step
+        n="2"
+        title="Cobertura"
+        text="Registo discreto e eficiente, com multiângulo e foco em storytelling e momentos-chave."
+      />
+      <Step
+        n="3"
+        title="Seleção & Entrega"
+        text="Pré-vias em 24–48h para social. Galeria final curada e editada em 3–7 dias úteis."
+      />
+    </div>
+  </div>
+</section>
 
-              <p className="leading-relaxed">
-                Recebes um conjunto curado de imagens com pós-produção,
-                em alta resolução e pronto para partilha. Opções de cobertura com
-                2–3 fotógrafos, seleção assistida e entrega express disponíveis.
-              </p>
-
-              <div className="mt-6 grid grid-cols-3 gap-4">
-                <Stat value="12+" label="anos" />
-                <Stat value="200+" label="eventos" />
-                <Stat value="24–48h" label="pré-vias" />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 3) Timeline do processo */}
-        <section className="mt-14">
-          <h2 className="text-2xl md:text-3xl font-extrabold mb-6">O nosso processo</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <Step
-              n="1"
-              title="Preparação"
-              text="Call de alinhamento, guião de momentos, acessos e logística. Chegamos cedo para reconhecimento."
-            />
-            <Step
-              n="2"
-              title="Cobertura"
-              text="Registo discreto e eficiente, com multiângulo e foco em storytelling e momentos-chave."
-            />
-            <Step
-              n="3"
-              title="Seleção & Entrega"
-              text="Pré-vias em 24–48h para social. Galeria final curada e editada em 3–7 dias úteis."
-            />
-          </div>
-        </section>
 
         {/* 4) Strip de marcas */}
         <div className="mt-16">

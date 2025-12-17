@@ -204,38 +204,32 @@ export default function ServicosFotosImobiliarias() {
             </div>
           </div>
 
-          {/* Card lateral */}
-          <div className="lg:col-span-5">
-            <div className="relative rounded-2xl bg-[#EBEBEB] text-[#2D2C2A] p-6 md:p-7 ring-1 ring-black/5 shadow-[0_12px_30px_rgba(0,0,0,.25)] overflow-hidden">
-              <div className="absolute -top-20 -right-16 w-56 h-56 rounded-full bg-[#d4b996]/30 blur-3xl pointer-events-none" />
-              <h3 className="text-xl font-extrabold mb-3">Pacotes & Entregas</h3>
-              <div className="flex flex-wrap gap-2 mb-5">
-                {["Standard (20–25 fotos)", "Premium + Drone", "Twilight", "Plantas 2D/3D*"].map((b) => (
-                  <Badge key={b}>{b}</Badge>
-                ))}
-              </div>
-              <p className="leading-relaxed">
-                Prévias em 24–48h; galeria final em 3–5 dias úteis. Export em resoluções para portais
-                e marketing. *Plantas/floorplans e virtual staging disponíveis como add-on.
-              </p>
-              <div className="mt-6 grid grid-cols-3 gap-4">
-                <Stat value="24–48h" label="prévias" />
-                <Stat value="20–40" label="fotos/tip." />
-                <Stat value="RAW" label="captura" />
-              </div>
-            </div>
-          </div>
+        {/* Processo à direita */}
+<div className="lg:col-span-5 lg:pt-10 mt-12 lg:mt-0">
+  <h2 className="text-2xl md:text-3xl font-extrabold mb-6">Processo</h2>
+
+  <div className="space-y-8">
+    <Step
+      n="1"
+      title="Brief & Preparação"
+      text="Objetivo do anúncio, lista de divisões, horários de melhor luz e check de staging."
+    />
+    <Step
+      n="2"
+      title="Sessão On-site"
+      text="Captação interior/exterior, drone opcional e twilight; atenção a linhas e reflexos."
+    />
+    <Step
+      n="3"
+      title="Edição & Entrega"
+      text="Curadoria, correções, export multi-formato (web/print) e galeria online."
+    />
+  </div>
+</div>
+
         </section>
 
-        {/* 3) Processo */}
-        <section className="mt-14">
-          <h2 className="text-2xl md:text-3xl font-extrabold mb-6">Processo</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <Step n="1" title="Brief & Preparação" text="Objetivo do anúncio, lista de divisões, horários de melhor luz e check de staging." />
-            <Step n="2" title="Sessão On-site" text="Captação interior/exterior, drone opcional e twilight; atenção a linhas e reflexos." />
-            <Step n="3" title="Edição & Entrega" text="Curadoria, correções, export multi-formato (web/print) e galeria online." />
-          </div>
-        </section>
+  
 
         {/* 4) Marcas */}
         <div className="mt-16">

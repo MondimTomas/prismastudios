@@ -216,42 +216,32 @@ export default function ServicosFotosDesporto() {
             </div>
           </div>
 
-          {/* Card lateral */}
-          <div className="lg:col-span-5">
-            <div className="relative rounded-2xl bg-[#EBEBEB] text-[#2D2C2A] p-6 md:p-7 ring-1 ring-black/5 shadow-[0_12px_30px_rgba(0,0,0,.25)] overflow-hidden">
-              <div className="absolute -top-20 -right-16 w-56 h-56 rounded-full bg-[#d4b996]/30 blur-3xl pointer-events-none" />
-              <h3 className="text-xl font-extrabold mb-3">Pacotes & Entregas</h3>
+        {/* Processo à direita */}
+<div className="lg:col-span-5 lg:pt-10 mt-12 lg:mt-0">
+  <h2 className="text-2xl md:text-3xl font-extrabold mb-6">O nosso processo</h2>
 
-              <div className="flex flex-wrap gap-2 mb-5">
-                {["Atleta / Equipa / Box", "1–3 fotógrafos", "Packs sociais", "Galeria online"].map((b) => (
-                  <span key={b} className="px-3 py-1 rounded-full text-sm bg-black/5">{b}</span>
-                ))}
-              </div>
+  <div className="space-y-8">
+    <Step
+      n="1"
+      title="Brief & Planeamento"
+      text="Objetivo do conteúdo (press, social, patrocínios), timings e logística."
+    />
+    <Step
+      n="2"
+      title="Cobertura"
+      text="Registo focado em ação, técnica e emoção; segurança e fluxo rápido."
+    />
+    <Step
+      n="3"
+      title="Seleção & Entrega"
+      text="Pré-vias para social em 24–48h. Galeria final editada em 3–7 dias úteis."
+    />
+  </div>
+</div>
 
-              <p className="leading-relaxed">
-                Conteúdo pensado para performance e promoção: retratos de atleta,
-                ação em campo/box, bastidores e materiais para patrocinadores. Pré-vias
-                em 24–48h para social; galeria completa em 3–7 dias úteis.
-              </p>
-
-              <div className="mt-6 grid grid-cols-3 gap-4">
-                <Stat value="300+" label="sessões" />
-                <Stat value="24–48h" label="pré-vias" />
-                <Stat value="∞" label="locais" />
-              </div>
-            </div>
-          </div>
         </section>
 
-        {/* 3) Processo */}
-        <section className="mt-14">
-          <h2 className="text-2xl md:text-3xl font-extrabold mb-6">O nosso processo</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <Step n="1" title="Brief & Planeamento" text="Objetivo do conteúdo (press, social, patrocínios), timings e logística." />
-            <Step n="2" title="Cobertura" text="Registo focado em ação, técnica e emoção; segurança e fluxo rápido." />
-            <Step n="3" title="Seleção & Entrega" text="Pré-vias para social em 24–48h. Galeria final editada em 3–7 dias úteis." />
-          </div>
-        </section>
+    
 
         {/* 4) Marcas */}
         <div className="mt-16">
