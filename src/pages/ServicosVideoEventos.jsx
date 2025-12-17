@@ -10,38 +10,28 @@ import { NAV_ITEMS } from "../navItems";
 const VIDEOS = [
   {
     title: "Batizado W&J",
-    src: "/videos/batizado-wj-v2.mp4",
+    src: "/videos/converted_videos/batizado-wj-v2.mp4",
     thumb: "/thumbs/batizadoW&J.png",
-
-    // aspect: "portrait",
   },
   {
     title: "Paixao pelo Vinho Ericeira",
-    src: "/videos/videoevento1.mp4",
+    src: "/videos/converted_videos/videoevento1.mp4",
     thumb: "/thumbs/videoevento1.png",
-
-    // aspect: "portrait",
   },
   {
-    title: "Semana Aacademica Setubal",
-    src: "/videos/videoevento2.mp4",
+    title: "Semana Academica Setubal",
+    src: "/videos/converted_videos/videoevento2.mp4",
     thumb: "/thumbs/videoevento2.png",
-
-    // aspect: "portrait",
   },
   {
     title: "Gala Finalistas",
-    src: "/videos/videoevento3.mp4",
+    src: "/videos/converted_videos/videoevento3.mp4",
     thumb: "/thumbs/videoevento3.png",
-
-    // aspec
   },
   {
     title: "Cerimonia Estudantil",
-    src: "/videos/videoevento4.mp4",
+    src: "/videos/converted_videos/videoevento4.mp4",
     thumb: "/thumbs/videoevento4.png",
-
-    // aspect: "portrait",
   },
 ];
 
