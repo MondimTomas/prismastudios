@@ -34,7 +34,7 @@ const VIDEOS = [
     src: "/videos/videoevento3.mp4",
     thumb: "/thumbs/videoevento3.png",
 
-    // aspect: "portrait",
+    // aspec
   },
   {
     title: "Cerimonia Estudantil",
