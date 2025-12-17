@@ -9,90 +9,26 @@ import { NAV_ITEMS } from "../navItems";
 /** Substitui pelos teus vídeos (se algum for vertical, mete aspect:"portrait") */
 const VIDEOS = [
   {
-    title: "Desporto 1",
-    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/video-desporto1.mp4",
-    thumb: "/thumbs/video-desporto1.png",
-  },
-  {
-    title: "Desporto 2",
-    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/video-desporto2.mp4",
-    thumb: "/thumbs/video-desporto2.png",
-  },
-  {
-    title: "Desporto 3",
-    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/video-desporto3.mp4",
-    thumb: "/thumbs/video-desporto3.png",
-  },
-  {
-    title: "Desporto 4",
-    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/video-desporto4.mp4",
-    thumb: "/thumbs/video-desporto4.png",
-  },
-  {
-    title: "Desporto 5",
-    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/video-desporto5.mp4",
-    thumb: "/thumbs/video-desporto5.png",
-  },
-  {
-    title: "Desporto 6",
-    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/video-desporto6.mp4",
-    thumb: "/thumbs/video-desporto6.png",
-  },
-  {
     title: "Evento 1",
-    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/videoevento1.mp4",
+    src: "hhttps://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/services/videoevento1.mp4",
     thumb: "/thumbs/videoevento1.png",
   },
   {
     title: "Evento 2",
-    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/videoevento2.mp4",
+    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/services/videoevento2.mp4",
     thumb: "/thumbs/videoevento2.png",
   },
   {
     title: "Evento 3",
-    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/videoevento3.mp4",
+    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/services/videoevento3.mp4",
     thumb: "/thumbs/videoevento3.png",
   },
   {
     title: "Evento 4",
-    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/videoevento4.mp4",
+    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/services/videoevento4.mp4",
     thumb: "/thumbs/videoevento4.png",
   },
-  {
-    title: "Imobiliário 1",
-    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/videoimob1.mp4",
-    thumb: "/thumbs/videoimob1.png",
-  },
-  {
-    title: "Imobiliário 2",
-    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/videoimob2.mp4",
-    thumb: "/thumbs/videoimob2.png",
-  },
-  {
-    title: "Imobiliário 3",
-    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/videoimob3.mp4",
-    thumb: "/thumbs/videoimob3.png",
-  },
-  {
-    title: "Imobiliário 4",
-    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/videoimob4.mp4",
-    thumb: "/thumbs/videoimob4.png",
-  },
-  {
-    title: "Imobiliário 5",
-    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/videoimob5.mp4",
-    thumb: "/thumbs/videoimob5.png",
-  },
-  {
-    title: "Imobiliário 6",
-    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/videoimob6.mp4",
-    thumb: "/thumbs/videoimob6.png",
-  },
-  {
-    title: "Imobiliário 7",
-    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/videoimob7.mp4",
-    thumb: "/thumbs/videoimob7.png",
-  },
+
 ];
 
 

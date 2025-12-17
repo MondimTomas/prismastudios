@@ -23,6 +23,14 @@ import AluguerPage from "./pages/AluguerPage";
 import BlogPage from "./pages/BlogPage";           // 👈 novo
 import BlogPostPage from "./pages/BlogPostPage";
 import ContactPage from "./pages/ContactPage";
+import LookbookConcertos from "./pages/LookbookConcertos";
+import LookbookCasamentosBatizados from "./pages/LookbookCasamentos";
+import LookbookRetratos from "./pages/LookbookRetratos";
+import LookbookRestauracao from "./pages/LookbookRestauracao";
+import LookbookFestas from "./pages/LookbookFestas"; 
+import LookbookDesporto from "./pages/LookbookDesporto";
+
+
 
 
 export default function App() {
@@ -32,6 +40,16 @@ export default function App() {
       <Route path="/portfolio" element={<PortfolioPage />} />
       <Route path="/about" element={<AboutPage />} />
       <Route path="/servicos" element={<ServicesPage />} />
+      <Route path="/lookbook/concertos" element={<LookbookConcertos />} />
+      <Route path="/lookbook/retratos" element={<LookbookRetratos />} />
+      <Route path="/lookbook/restauracao" element={<LookbookRestauracao />} />
+      <Route path="/lookbook/festas" element={<LookbookFestas />} />
+      <Route path="/lookbook/desporto" element={<LookbookDesporto />} />
+
+      <Route
+  path="/lookbook/casamentos"
+  element={<LookbookCasamentosBatizados />}
+/>
       <Route
         path="/servicos/fotografia/eventos"
         element={<ServicosFotosEventos />}

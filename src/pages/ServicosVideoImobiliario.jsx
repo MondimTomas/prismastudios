@@ -7,14 +7,50 @@ import { NAV_ITEMS } from "../navItems";
 
 /** Troca pelos teus vídeos reais (YouTube/Vimeo ou .mp4 em /public/videos) */
 const VIDEOS = [
-  { src: "/videos/videoimob1.mp4", thumb: "/thumbs/videoimob1.png", duration: "—", platform: "MP4" },
-  {  src: "/videos/videoimob2.mp4", thumb: "/thumbs/videoimob2.png", duration: "—", platform: "MP4" },
-  {  src: "/videos/videoimob3.mp4", thumb: "/thumbs/videoimob3.png", duration: "—", platform: "MP4" },
-  { src: "/videos/videoimob4.mp4", thumb: "/thumbs/videoimob4.png", duration: "—", platform: "MP4" },
-  {  src: "/videos/videoimob5.mp4", thumb: "/thumbs/videoimob5.png", duration: "—", platform: "MP4" },
-  { src: "/videos/videoimob6.mp4", thumb: "/thumbs/videoimob6.png", duration: "—", platform: "MP4" },
-  {  src: "/videos/videoimob7.mp4", thumb: "/thumbs/videoimob7.png", duration: "—", platform: "MP4" },
+  {
+    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/services/videoimob1.mp4",
+    thumb: "/thumbs/videoimob1.png",
+    duration: "—",
+    platform: "MP4",
+  },
+  {
+    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/services/videoimob2.mp4",
+    thumb: "/thumbs/videoimob2.png",
+    duration: "—",
+    platform: "MP4",
+  },
+  {
+    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/services/videoimob3.mp4",
+    thumb: "/thumbs/videoimob3.png",
+    duration: "—",
+    platform: "MP4",
+  },
+  {
+    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/services/videoimob4.mp4",
+    thumb: "/thumbs/videoimob4.png",
+    duration: "—",
+    platform: "MP4",
+  },
+  {
+    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/services/videoimob5.mp4",
+    thumb: "/thumbs/videoimob5.png",
+    duration: "—",
+    platform: "MP4",
+  },
+  {
+    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/services/videoimob6.mp4",
+    thumb: "/thumbs/videoimob6.png",
+    duration: "—",
+    platform: "MP4",
+  },
+  {
+    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/services/videoimob7.mp4",
+    thumb: "/thumbs/videoimob7.png",
+    duration: "—",
+    platform: "MP4",
+  },
 ];
+
 
 
 const isYouTube = (url) => /youtube\.com|youtu\.be/.test(url);

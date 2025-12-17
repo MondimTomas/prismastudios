@@ -1,52 +1,78 @@
-// src/components/PortfolioGallery.jsx
 import { PORTFOLIO } from "../portfolioData";
+import { Link } from "react-router-dom"; // se estiveres a usar React Router
 
 export default function PortfolioGallery({ category }) {
   const items = PORTFOLIO[category] ?? [];
 
-  return (
-    <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      {items.map((it) => {
-        const Wrapper = it.href ? "a" : "div";
-        const wrapperProps = it.href
-          ? {
-              href: it.href,
-              target: "_blank",
-              rel: "noopener noreferrer",
-            }
-          : {};
+  // ⚠️ FOTO → mostra botões grandes em vez de galeria
+  if (category === "foto") {
+    const sections = [
+      { id: "concertos", label: "Concertos & Artistas", href: "/lookbook/concertos" },
+      { id: "casamentos", label: "Casamentos & Batizados", href: "/lookbook/casamentos" },
+      { id: "festas", label: "Festas & Celebrações", href: "/lookbook/festas" },
+      { id: "restauracao", label: "Restauração", href: "/lookbook/restauracao" },
+      { id: "retratos", label: "Retratos", href: "/lookbook/retratos" },
+        { id: "desporto", label: "Desporto", href: "/lookbook/desporto" },
+    ];
 
-        return (
-          <Wrapper
-            key={it.id}
-            {...wrapperProps}
-            className="group block rounded-xl overflow-hidden bg-[#EBEBEB] ring-1 ring-black/5 shadow-[0_8px_30px_rgba(0,0,0,.15)]"
+    return (
+      <div className="mt-12 grid gap-6 md:grid-cols-2">
+        {sections.map((section) => (
+          <a
+            key={section.id}
+            href={section.href}
+            className="block bg-[#EBEBEB] text-[#2D2C2A] rounded-xl p-6 text-2xl font-bold text-center hover:bg-[#D6D6D6] transition"
           >
-            <div className="aspect-[16/10] bg-white overflow-hidden">
-              {it.src ? (
+            {section.label}
+          </a>
+        ))}
+      </div>
+    );
+  }
+
+  // Agrupar vídeos por secção (para categoria "video")
+  const grouped = items.reduce((acc, item) => {
+    const section = item.section || "Outros";
+    if (!acc[section]) acc[section] = [];
+    acc[section].push(item);
+    return acc;
+  }, {});
+
+  return (
+    <div className="mt-12 space-y-16">
+      {Object.entries(grouped).map(([sectionTitle, videos]) => (
+        <div key={sectionTitle}>
+          {/* Título da secção */}
+          <h3 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-4 mb-6">
+            {sectionTitle}
+            <span className="flex-1 h-px bg-[#A78C79] opacity-50" />
+          </h3>
+
+          {/* Galeria da secção */}
+          <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
+            {videos.map((it) => (
+              <div key={it.id} className="w-full">
                 <video
                   src={it.src}
                   muted
                   playsInline
                   controls
+                  poster={it.thumb}
                   preload="metadata"
-                  className="w-full h-full object-cover"
+                  className={`w-full h-auto object-cover mx-auto ${
+                    it.aspect === "portrait"
+                      ? "aspect-[9/16] max-w-[250px]"
+                      : "aspect-video"
+                  }`}
                 />
-              ) : (
-                <img
-                  src={it.thumb}
-                  alt={it.title}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                />
-              )}
-            </div>
-            <div className="px-4 py-3 text-[#2D2C2A] flex items-center justify-between">
-              <h3 className="font-semibold">{it.title}</h3>
-              <span className="text-[#A78C79] group-hover:translate-x-0.5 transition">seta</span>
-            </div>
-          </Wrapper>
-        );
-      })}
+                {it.title && (
+                  <p className="mt-2 text-sm text-[#C7C2BC]">{it.title}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

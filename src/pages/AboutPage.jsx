@@ -30,27 +30,18 @@ const TEAM = [
       <main className="max-w-6xl mx-auto px-6 py-16 md:py-24">
         {/* Equipa */}
         <h1 className="text-4xl md:text-6xl font-extrabold text-center">A Nossa Equipa</h1>
-        <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          {TEAM.map(p => (
-            <div key={p.name} className="group">
-              <div className="rounded-2xl overflow-hidden bg-black/25 ring-1 ring-[#C7C2BC]/30 shadow-[0_20px_50px_rgba(0,0,0,.35)]">
-                <div className="aspect-[4/5] w-full overflow-hidden">
-                  <img
-                    src={p.photo}
-                    alt={p.name}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </div>
-              </div>
-              <div className="pt-4 text-center">
-                <div className="text-lg md:text-xl font-semibold text-[#EBEBEB]">{p.name}</div>
-                <div className="text-sm md:text-base font-bold uppercase tracking-wide text-[#A78C79]">{p.role}</div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <div className="mt-12 flex justify-center">
+  <div className="rounded-2xl overflow-hidden ring-1 ring-[#C7C2BC]/30 shadow-[0_20px_50px_rgba(0,0,0,.35)] max-w-md bg-white p-2">
+    <img
+      src="/PRISMA_team-1.JPG"
+      alt="Equipa Prisma Studios"
+      className="w-full h-auto object-cover rounded-xl"
+      loading="lazy"
+      decoding="async"
+    />
+  </div>
+</div>
+
 
         {/* Sobre a Prisma */}
         <section className="mt-20 md:mt-24 grid md:grid-cols-2 gap-8 items-start">

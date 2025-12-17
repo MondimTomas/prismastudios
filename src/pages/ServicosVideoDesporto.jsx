@@ -9,15 +9,53 @@ import { NAV_ITEMS } from "../navItems";
  *  e thumbs em /public/thumbs
  */
 const VIDEOS = [
-  { title: "Vídeo Desporto 1", src: "/videos/video-desporto1.mp4", thumb: "/thumbs/video-desporto1.png", platform: "MP4", duration: "—" },
-  { title: "Vídeo Desporto 2 (vertical)", src: "/videos/video-desporto2.mp4", thumb: "/thumbs/video-desporto2.png", platform: "MP4", duration: "—", aspect: "portrait" },
-  { title: "Vídeo Desporto 3", src: "/videos/video-desporto3.mp4", thumb: "/thumbs/video-desporto3.png", platform: "MP4", duration: "—" },
-  { title: "Vídeo Desporto 4 (vertical)", src: "/videos/video-desporto4.mp4", thumb: "/thumbs/video-desporto4.png", platform: "MP4", duration: "—", aspect: "portrait" },
-  { title: "Vídeo Desporto 5", src: "/videos/video-desporto5.mp4", thumb: "/thumbs/video-desporto5.png", platform: "MP4", duration: "—" },
-  { title: "Vídeo Desporto 6 (vertical)", src: "/videos/video-desporto6.mp4", thumb: "/thumbs/video-desporto6.png", platform: "MP4", duration: "—", aspect: "portrait" },
-  // se houver 7:
-  // { title: "Vídeo Desporto 7", src: "/videos/video-desporto7.mp4", thumb: "/thumbs/video-desporto7.png", platform: "MP4", duration: "—" },
+  {
+    title: "Vídeo Desporto 1",
+    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/services/video-desporto1.mp4",
+    thumb: "/thumbs/video-desporto1.png",
+    platform: "MP4",
+    duration: "—"
+  },
+  {
+    title: "Vídeo Desporto 2 (vertical)",
+    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/services/video-desporto2.mp4",
+    thumb: "/thumbs/video-desporto2.png",
+    platform: "MP4",
+    duration: "—",
+    aspect: "portrait"
+  },
+  {
+    title: "Vídeo Desporto 3",
+    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/services/video-desporto3.mp4",
+    thumb: "/thumbs/video-desporto3.png",
+    platform: "MP4",
+    duration: "—"
+  },
+  {
+    title: "Vídeo Desporto 4 (vertical)",
+    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/services/video-desporto4.mp4",
+    thumb: "/thumbs/video-desporto4.png",
+    platform: "MP4",
+    duration: "—",
+    aspect: "portrait"
+  },
+  {
+    title: "Vídeo Desporto 5",
+    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/services/video-desporto5.mp4",
+    thumb: "/thumbs/video-desporto5.png",
+    platform: "MP4",
+    duration: "—"
+  },
+  {
+    title: "Vídeo Desporto 6 (vertical)",
+    src: "https://pukvvgovkksbispokjvx.supabase.co/storage/v1/object/public/videos/services/video-desporto6.mp4",
+    thumb: "/thumbs/video-desporto6.png",
+    platform: "MP4",
+    duration: "—",
+    aspect: "portrait"
+  },
 ];
+
 
 
 
