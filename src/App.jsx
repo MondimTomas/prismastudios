@@ -37,6 +37,7 @@ import ClientsPage from "./private/pages/ClientsPage";
 import TasksPage from "./private/pages/TasksPage";
 import FinancePage from "./private/pages/FinancePage";
 import PlaybookPage from "./private/pages/PlaybookPage";
+import CalendarPage from "./private/pages/CalendarPage";
 import ProtectedRoute from "./private/ProtectedRoute";
 
 function PrivatePage({ children }) {
@@ -130,6 +131,14 @@ export default function App() {
         }
       />
       <Route
+        path="/tomasmondim/ramo/:lineId/:section"
+        element={
+          <PrivatePage>
+            <BusinessLinePage />
+          </PrivatePage>
+        }
+      />
+      <Route
         path="/tomasmondim/clientes"
         element={
           <PrivatePage>
@@ -142,6 +151,14 @@ export default function App() {
         element={
           <PrivatePage>
             <TasksPage />
+          </PrivatePage>
+        }
+      />
+      <Route
+        path="/tomasmondim/calendario"
+        element={
+          <PrivatePage>
+            <CalendarPage />
           </PrivatePage>
         }
       />
