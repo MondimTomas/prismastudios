@@ -54,38 +54,17 @@ Deno.serve(async (req: Request) => {
     }
 
     const url = validateZeroZeroUrl(rawUrl);
-    const response = await fetchZeroZero(url);
+    const fetched = await fetchZeroZeroPage(url);
+    const parsed = parseSquad(fetched.body, url.toString());
 
-    if (!response.ok) {
-      return json(
-        {
-          error:
-            response.status === 403
-              ? "O ZeroZero bloqueou temporariamente o pedido automático. Tenta novamente mais tarde."
-              : "Não foi possível carregar a página do ZeroZero.",
-          status: response.status,
-        },
-        response.status === 403 ? 502 : 400,
-      );
-    }
-
-    const html = await response.text();
-
-    if (
-      /cf-chl|cloudflare|just a moment|enable javascript and cookies/i.test(
-        html.slice(0, 100000),
-      )
-    ) {
-      return json(
-        {
-          error:
-            "O ZeroZero devolveu uma página de proteção anti-bot em vez do plantel. Tenta novamente mais tarde.",
-        },
-        502,
-      );
-    }
-
-    const parsed = parseSquad(html, url.toString());
+    console.log(
+      JSON.stringify({
+        event: "zerozero_preview",
+        fetch_source: fetched.source,
+        direct_status: fetched.directStatus,
+        players: parsed.players.length,
+      }),
+    );
 
     if (parsed.players.length === 0) {
       return json(
@@ -169,46 +148,109 @@ function validateZeroZeroUrl(raw: string) {
   return url;
 }
 
-async function fetchZeroZero(initialUrl: URL) {
+async function fetchZeroZeroPage(initialUrl: URL) {
+  const direct = await fetchDirectZeroZero(initialUrl);
+
+  if (direct.ok && direct.body && !looksLikeBotProtection(direct.body)) {
+    return {
+      body: direct.body,
+      source: "zerozero-direct",
+      directStatus: direct.status,
+    };
+  }
+
+  const reader = await fetchWithJinaReader(initialUrl);
+
+  if (!reader.ok || !reader.body) {
+    throw new Error(
+      "O ZeroZero bloqueou o acesso automático e o método alternativo também não conseguiu ler a página."
+    );
+  }
+
+  return {
+    body: reader.body,
+    source: "jina-reader",
+    directStatus: direct.status,
+  };
+}
+
+async function fetchDirectZeroZero(initialUrl: URL) {
   let current = initialUrl;
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const response = await fetch(current, {
-      redirect: "manual",
-      signal: AbortSignal.timeout(12000),
+    try {
+      const response = await fetch(current, {
+        redirect: "manual",
+        signal: AbortSignal.timeout(12000),
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+          Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "Accept-Language": "pt-PT,pt;q=0.9,en;q=0.7",
+          "Cache-Control": "no-cache",
+        },
+      });
+
+      if (![301, 302, 303, 307, 308].includes(response.status)) {
+        return {
+          ok: response.ok,
+          status: response.status,
+          body: await response.text(),
+        };
+      }
+
+      const location = response.headers.get("location");
+      if (!location) {
+        return { ok: false, status: response.status, body: "" };
+      }
+
+      const next = new URL(location, current);
+      validateZeroZeroUrl(next.toString());
+      current = next;
+    } catch {
+      return { ok: false, status: 0, body: "" };
+    }
+  }
+
+  return { ok: false, status: 0, body: "" };
+}
+
+async function fetchWithJinaReader(targetUrl: URL) {
+  try {
+    const readerUrl = "https://r.jina.ai/" + targetUrl.toString();
+    const response = await fetch(readerUrl, {
+      signal: AbortSignal.timeout(25000),
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "pt-PT,pt;q=0.9,en;q=0.7",
-        "Cache-Control": "no-cache",
+        Accept: "text/plain",
+        "X-Engine": "browser",
+        "X-Timeout": "20",
+        "X-Locale": "pt-PT",
+        "X-No-Cache": "true",
+        DNT: "1",
       },
     });
 
-    if (![301, 302, 303, 307, 308].includes(response.status)) {
-      const length = Number(response.headers.get("content-length") || 0);
-      if (length > 3_000_000) {
-        throw new Error("A página devolvida pelo ZeroZero é demasiado grande.");
-      }
-      return response;
-    }
-
-    const location = response.headers.get("location");
-    if (!location) return response;
-
-    const next = new URL(location, current);
-    validateZeroZeroUrl(next.toString());
-    current = next;
+    return {
+      ok: response.ok,
+      status: response.status,
+      body: await response.text(),
+    };
+  } catch {
+    return { ok: false, status: 0, body: "" };
   }
+}
 
-  throw new Error("O ZeroZero redirecionou o pedido demasiadas vezes.");
+function looksLikeBotProtection(body: string) {
+  return /cf-chl|cloudflare|just a moment|enable javascript and cookies|attention required/i.test(
+    body.slice(0, 120000),
+  );
 }
 
 function parseSquad(html: string, sourceUrl: string) {
-  const teamName = extractTeamName(html);
-  const playerUrls = extractPlayerUrls(html, sourceUrl);
-  const lines = htmlToLines(html);
+  const teamName = extractTeamNameFromContent(html);
+  const playerUrls = extractPlayerUrlsFromContent(html, sourceUrl);
+  const lines = contentToLines(html);
 
   const plantelIndex = lines.findIndex((line) =>
     /^plantel(?:\b|\s*\()/i.test(line),
@@ -282,6 +324,33 @@ function parseSquad(html: string, sourceUrl: string) {
     players,
     parserVersion: 1,
   };
+}
+
+function contentToLines(content: string) {
+  if (/<(?:html|body|div|section|table|h1|h2)\b/i.test(content)) {
+    return htmlToLines(content);
+  }
+
+  return markdownToLines(content);
+}
+
+function markdownToLines(content: string) {
+  return content
+    .split(/\r?\n/)
+    .map((line) =>
+      normalizeWhitespace(
+        line
+          .replace(/^#{1,6}\s*/, "")
+          .replace(/^[-*+]\s+/, "")
+          .replace(/!\[[^\]]*\]\([^)]+\)/g, " ")
+          .replace(/\[([^\]]+)\]\((?:https?:\/\/)?[^)]+\)/g, "$1")
+          .replace(/^\|/, "")
+          .replace(/\|$/, "")
+          .replace(/\|/g, " ")
+          .replace(/[*_>]/g, " "),
+      ),
+    )
+    .filter(Boolean);
 }
 
 function htmlToLines(html: string) {
@@ -364,12 +433,30 @@ function normalizePosition(value: string) {
   return POSITION_ALIASES[key] || null;
 }
 
-function extractTeamName(html: string) {
-  const h1 = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
-  if (!h1) return null;
+function extractTeamNameFromContent(content: string) {
+  const h1 = content.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
 
-  const text = normalizeWhitespace(decodeEntities(h1[1].replace(/<[^>]+>/g, " ")));
-  return text || null;
+  if (h1) {
+    const text = normalizeWhitespace(
+      decodeEntities(h1[1].replace(/<[^>]+>/g, " "))
+    );
+    if (text) return text;
+  }
+
+  const markdownHeading = content.match(/^#\s+(.+)$/m);
+  if (markdownHeading) {
+    const text = normalizeWhitespace(markdownHeading[1]);
+    if (text && !/^title:/i.test(text)) return text;
+  }
+
+  const titleLine = content.match(/^Title:\s*(.+)$/mi);
+  if (titleLine) {
+    return normalizeWhitespace(
+      titleLine[1].replace(/\s+-\s+.*?(?:Plantel|Jogos|Classificaç).*$/i, "")
+    );
+  }
+
+  return null;
 }
 
 function extractSeason(lines: string[]) {
@@ -380,34 +467,55 @@ function extractSeason(lines: string[]) {
   return null;
 }
 
-function extractPlayerUrls(html: string, sourceUrl: string) {
+function extractPlayerUrlsFromContent(content: string, sourceUrl: string) {
   const map = new Map<string, string>();
-  const anchorRegex =
+
+  const htmlAnchorRegex =
     /<a\b[^>]*href=["']([^"']*\/jogador\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
 
-  let match: RegExpExecArray | null;
+  let htmlMatch: RegExpExecArray | null;
 
-  while ((match = anchorRegex.exec(html)) !== null) {
-    const name = normalizeWhitespace(
-      decodeEntities(match[2].replace(/<[^>]+>/g, " ")),
+  while ((htmlMatch = htmlAnchorRegex.exec(content)) !== null) {
+    addPlayerUrl(
+      map,
+      decodeEntities(htmlMatch[2].replace(/<[^>]+>/g, " ")),
+      htmlMatch[1],
+      sourceUrl,
     );
+  }
 
-    if (!name || name.length > 90) continue;
+  const markdownAnchorRegex =
+    /\[([^\]]+)\]\((https?:\/\/(?:www\.)?zerozero\.pt\/jogador\/[^)\s]+)\)/gi;
 
-    try {
-      const absolute = new URL(match[1], sourceUrl);
-      if (
-        absolute.hostname === "zerozero.pt" ||
-        absolute.hostname === "www.zerozero.pt"
-      ) {
-        map.set(name.toLocaleLowerCase("pt-PT"), absolute.toString());
-      }
-    } catch {
-      // Ignore malformed player links.
-    }
+  let markdownMatch: RegExpExecArray | null;
+
+  while ((markdownMatch = markdownAnchorRegex.exec(content)) !== null) {
+    addPlayerUrl(map, markdownMatch[1], markdownMatch[2], sourceUrl);
   }
 
   return map;
+}
+
+function addPlayerUrl(
+  map: Map<string, string>,
+  rawName: string,
+  rawUrl: string,
+  sourceUrl: string,
+) {
+  const name = normalizeWhitespace(rawName);
+  if (!name || name.length > 90) return;
+
+  try {
+    const absolute = new URL(rawUrl, sourceUrl);
+    if (
+      absolute.hostname === "zerozero.pt" ||
+      absolute.hostname === "www.zerozero.pt"
+    ) {
+      map.set(name.toLocaleLowerCase("pt-PT"), absolute.toString());
+    }
+  } catch {
+    // Ignore malformed player links.
+  }
 }
 
 function normalizeName(value: string) {
