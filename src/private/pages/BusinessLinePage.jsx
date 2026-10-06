@@ -10,6 +10,8 @@ export default function BusinessLinePage() {
   const line = getBusinessLine(lineId);
   const [jobs, setJobs] = useState([]);
   const [footballTeams, setFootballTeams] = useState([]);
+  const [browserlessUsage, setBrowserlessUsage] = useState(null);
+  const [squadSyncsThisMonth, setSquadSyncsThisMonth] = useState(0);
   const [loadingData, setLoadingData] = useState(true);
   const [dataError, setDataError] = useState("");
 
@@ -35,11 +37,24 @@ export default function BusinessLinePage() {
     }
 
     if (line.id === "futebol") {
-      const teamsResult = await supabase
-        .from("football_teams")
-        .select("id,name,season")
-        .order("season", { ascending: false })
-        .order("name", { ascending: true });
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+
+      const [teamsResult, syncsResult, usageResult] = await Promise.all([
+        supabase
+          .from("football_teams")
+          .select("id,name,season")
+          .order("season", { ascending: false })
+          .order("name", { ascending: true }),
+        supabase
+          .from("football_squad_syncs")
+          .select("id", { count: "exact", head: true })
+          .gte("created_at", monthStart.toISOString()),
+        supabase.functions.invoke("zerozero-squad-preview", {
+          body: { action: "usage" },
+        }),
+      ]);
 
       if (teamsResult.error) {
         setDataError((current) => current || teamsResult.error.message);
@@ -47,8 +62,23 @@ export default function BusinessLinePage() {
       } else {
         setFootballTeams(teamsResult.data || []);
       }
+
+      if (syncsResult.error) {
+        setDataError((current) => current || syncsResult.error.message);
+        setSquadSyncsThisMonth(0);
+      } else {
+        setSquadSyncsThisMonth(syncsResult.count || 0);
+      }
+
+      if (usageResult.error) {
+        setBrowserlessUsage(null);
+      } else {
+        setBrowserlessUsage(usageResult.data || null);
+      }
     } else {
       setFootballTeams([]);
+      setBrowserlessUsage(null);
+      setSquadSyncsThisMonth(0);
     }
 
     setLoadingData(false);
@@ -99,6 +129,8 @@ export default function BusinessLinePage() {
           line={line}
           jobs={jobs}
           footballTeams={footballTeams}
+          browserlessUsage={browserlessUsage}
+          squadSyncsThisMonth={squadSyncsThisMonth}
           loading={loadingData}
         />
       )}
@@ -118,7 +150,14 @@ export default function BusinessLinePage() {
   );
 }
 
-function Overview({ line, jobs, footballTeams, loading }) {
+function Overview({
+  line,
+  jobs,
+  footballTeams,
+  browserlessUsage,
+  squadSyncsThisMonth,
+  loading,
+}) {
   const stats = useMemo(
     () => buildLineStats(line, jobs, footballTeams),
     [line, jobs, footballTeams]
@@ -145,6 +184,14 @@ function Overview({ line, jobs, footballTeams, loading }) {
           />
         ))}
       </div>
+
+      {line.id === "futebol" && (
+        <BrowserlessUsageCard
+          usage={browserlessUsage}
+          syncsThisMonth={squadSyncsThisMonth}
+          loading={loading}
+        />
+      )}
 
       <section className="mt-10">
         <SectionTitle eyebrow="Pipeline" title="Processo comercial" />
@@ -199,6 +246,66 @@ function Overview({ line, jobs, footballTeams, loading }) {
         </div>
       </section>
     </>
+  );
+}
+
+function BrowserlessUsageCard({ usage, syncsThisMonth, loading }) {
+  const used = Number.isFinite(usage?.used) ? usage.used : null;
+  const limit = Number.isFinite(usage?.limit) ? usage.limit : null;
+  const remaining = Number.isFinite(usage?.remaining)
+    ? usage.remaining
+    : used !== null && limit !== null
+      ? Math.max(0, limit - used)
+      : null;
+  const percentage =
+    used !== null && limit && limit > 0
+      ? Math.min(100, Math.round((used / limit) * 100))
+      : null;
+
+  return (
+    <section className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-[#B89A84]">
+            Automação ZeroZero
+          </p>
+          <h3 className="font-semibold mt-1">Browserless · controlo de utilização</h3>
+          <p className="text-xs text-white/30 mt-1">
+            Só é usado quando pedes uma importação ou atualização do plantel.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 min-w-full lg:min-w-[430px]">
+          <MiniValue
+            label="Syncs este mês"
+            value={loading ? "…" : String(syncsThisMonth)}
+          />
+          <MiniValue
+            label="Units usadas"
+            value={loading ? "…" : used !== null ? String(used) : "—"}
+          />
+          <MiniValue
+            label="Units restantes"
+            value={loading ? "…" : remaining !== null ? String(remaining) : "—"}
+          />
+        </div>
+      </div>
+
+      {percentage !== null && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between gap-3 text-[11px] text-white/30 mb-2">
+            <span>{used} / {limit} units</span>
+            <span>{percentage}% usado</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+            <div
+              className="h-full rounded-full bg-[#B89A84]"
+              style={{ width: percentage + "%" }}
+            />
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
