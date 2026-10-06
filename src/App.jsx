@@ -39,6 +39,7 @@ import FinancePage from "./private/pages/FinancePage";
 import PlaybookPage from "./private/pages/PlaybookPage";
 import CalendarPage from "./private/pages/CalendarPage";
 import JobsPage from "./private/pages/JobsPage";
+import FootballTeamPage from "./private/pages/FootballTeamPage";
 import ProtectedRoute from "./private/ProtectedRoute";
 
 function PrivatePage({ children }) {
@@ -144,6 +145,14 @@ export default function App() {
         element={
           <PrivatePage>
             <JobsPage />
+          </PrivatePage>
+        }
+      />
+      <Route
+        path="/tomasmondim/futebol/equipas/:teamId"
+        element={
+          <PrivatePage>
+            <FootballTeamPage />
           </PrivatePage>
         }
       />
