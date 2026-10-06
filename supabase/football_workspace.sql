@@ -24,9 +24,19 @@ create table if not exists public.football_players (
   name text not null check (char_length(trim(name)) > 0),
   shirt_number integer check (shirt_number is null or (shirt_number >= 0 and shirt_number <= 99)),
   position text,
+  phone text,
+  email text,
+  instagram text,
+  notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.football_players
+  add column if not exists phone text,
+  add column if not exists email text,
+  add column if not exists instagram text,
+  add column if not exists notes text;
 
 create index if not exists football_players_user_id_idx
   on public.football_players (user_id);
