@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import WorkspaceLayout from "../components/WorkspaceLayout";
 import { businessLines, getBusinessLine } from "../workspaceData";
 import { supabase } from "../../lib/supabase";
@@ -518,7 +518,16 @@ export default function JobsPage() {
                   {formatDate(job.job_date)}
                 </div>
                 <div className="md:col-span-3">
-                  <p className="text-sm font-medium">{team?.name || job.client_name}</p>
+                  {job.team_id ? (
+                    <Link
+                      to={"/tomasmondim/futebol/equipas/" + job.team_id}
+                      className="text-sm font-medium hover:text-[#B89A84] transition"
+                    >
+                      {team?.name || job.client_name}
+                    </Link>
+                  ) : (
+                    <p className="text-sm font-medium">{job.client_name}</p>
+                  )}
                   <p className="text-xs text-white/30 mt-1">{job.title}</p>
                 </div>
                 <div className="md:col-span-2 text-sm text-white/45">
