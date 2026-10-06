@@ -667,12 +667,26 @@ export default function FootballTeamPage() {
                 </p>
               </div>
 
-              {team?.zerozero_last_synced_at && (
-                <span className="text-xs text-white/25">
-                  Última sincronização:{" "}
-                  {formatDateTime(team.zerozero_last_synced_at)}
+              <div className="flex flex-wrap items-center gap-3">
+                <span
+                  className={
+                    zerozeroExtensionAvailable
+                      ? "rounded-full border border-emerald-400/20 bg-emerald-400/[0.06] px-2.5 py-1 text-[10px] text-emerald-200/70"
+                      : "rounded-full border border-amber-400/20 bg-amber-400/[0.06] px-2.5 py-1 text-[10px] text-amber-200/70"
+                  }
+                >
+                  {zerozeroExtensionAvailable
+                    ? "Extensão ligada · 0 €/importação"
+                    : "Extensão não detetada"}
                 </span>
-              )}
+
+                {team?.zerozero_last_synced_at && (
+                  <span className="text-xs text-white/25">
+                    Última sincronização:{" "}
+                    {formatDateTime(team.zerozero_last_synced_at)}
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="p-5">
@@ -821,7 +835,7 @@ export default function FootballTeamPage() {
               )}
 
               <p className="text-[11px] text-white/20 mt-3">
-                O browser agent abre a página do ZeroZero, lê o plantel renderizado e mostra sempre uma pré-visualização antes de gravares alterações.
+                A extensão usa o teu próprio Edge/Chrome para ler a página pública do ZeroZero. Não usa Browserless nem consome créditos.
               </p>
             </div>
           </section>
