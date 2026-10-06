@@ -55,6 +55,10 @@ export default function WorkspaceLayout({ children, title, eyebrow, actions }) {
             Gestão
           </div>
 
+          <NavLink to="/tomasmondim/trabalhos" className={navClass}>
+            <span>▣</span>
+            <span>Trabalhos</span>
+          </NavLink>
           <NavLink to="/tomasmondim/clientes" className={navClass}>
             <span>◎</span>
             <span>Clientes</span>
@@ -124,6 +128,9 @@ export default function WorkspaceLayout({ children, title, eyebrow, actions }) {
                   {line.icon} {line.name}
                 </NavLink>
               ))}
+              <NavLink to="/tomasmondim/trabalhos" className={navClass}>
+                Trabalhos
+              </NavLink>
               <NavLink to="/tomasmondim/clientes" className={navClass}>
                 Clientes
               </NavLink>
