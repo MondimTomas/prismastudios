@@ -1,15 +1,108 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import WorkspaceLayout from "../components/WorkspaceLayout";
 import { businessLines } from "../workspaceData";
-
-const summaryCards = [
-  { label: "Receita este mês", value: "0 €", hint: "Todos os ramos" },
-  { label: "Pipeline aberto", value: "0 €", hint: "Oportunidades ativas" },
-  { label: "A receber", value: "0 €", hint: "Pagamentos pendentes" },
-  { label: "Trabalhos este mês", value: "0", hint: "Sessões, projetos e eventos" },
-];
+import { supabase } from "../../lib/supabase";
 
 export default function Dashboard() {
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const loadJobs = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    const { data, error: loadError } = await supabase
+      .from("workspace_jobs")
+      .select("*, football_teams(id,name,season)")
+      .order("job_date", { ascending: false });
+
+    if (loadError) {
+      setError(loadError.message);
+      setJobs([]);
+    } else {
+      setJobs(data || []);
+    }
+
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadJobs();
+  }, [loadJobs]);
+
+  const stats = useMemo(() => {
+    const now = new Date();
+    const monthJobs = jobs.filter((job) => sameMonth(job.job_date, now));
+    const revenueThisMonth = sum(monthJobs, "revenue");
+    const receivable = jobs
+      .filter((job) => job.payment_status !== "paid")
+      .reduce((total, job) => total + Number(job.revenue || 0), 0);
+
+    const byLine = Object.fromEntries(
+      businessLines.map((line) => {
+        const lineJobs = jobs.filter((job) => job.business_line === line.id);
+        return [
+          line.id,
+          {
+            jobs: lineJobs.length,
+            revenue: sum(lineJobs, "revenue"),
+          },
+        ];
+      })
+    );
+
+    const today = startOfDay(now);
+    const inSevenDays = new Date(today);
+    inSevenDays.setDate(inSevenDays.getDate() + 7);
+
+    const upcoming = jobs
+      .filter((job) => {
+        if (!job.job_date) return false;
+        const date = parseDate(job.job_date);
+        return date >= today && date <= inSevenDays;
+      })
+      .sort((a, b) => a.job_date.localeCompare(b.job_date));
+
+    return {
+      revenueThisMonth,
+      receivable,
+      monthJobs: monthJobs.length,
+      byLine,
+      upcoming,
+      overduePayments: jobs.filter(
+        (job) =>
+          job.payment_status !== "paid" &&
+          job.job_date &&
+          parseDate(job.job_date) < today
+      ).length,
+    };
+  }, [jobs]);
+
+  const summaryCards = [
+    {
+      label: "Receita este mês",
+      value: money(stats.revenueThisMonth),
+      hint: "Todos os ramos",
+    },
+    {
+      label: "Pipeline aberto",
+      value: "0 €",
+      hint: "Será alimentado pelas leads",
+    },
+    {
+      label: "A receber",
+      value: money(stats.receivable),
+      hint: "Trabalhos não marcados como pagos",
+    },
+    {
+      label: "Trabalhos este mês",
+      value: String(stats.monthJobs),
+      hint: "Sessões, projetos e eventos",
+    },
+  ];
+
   return (
     <WorkspaceLayout title="Visão Geral" eyebrow="Negócio">
       <section>
@@ -19,6 +112,12 @@ export default function Dashboard() {
           </p>
         </div>
 
+        {error && (
+          <div className="mb-6 rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
+            {error}
+          </div>
+        )}
+
         <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {summaryCards.map((card) => (
             <div
@@ -26,7 +125,9 @@ export default function Dashboard() {
               className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5"
             >
               <p className="text-sm text-white/40">{card.label}</p>
-              <p className="mt-3 text-3xl font-semibold tracking-tight">{card.value}</p>
+              <p className="mt-3 text-3xl font-semibold tracking-tight">
+                {loading ? "…" : card.value}
+              </p>
               <p className="mt-2 text-xs text-white/25">{card.hint}</p>
             </div>
           ))}
@@ -51,11 +152,36 @@ export default function Dashboard() {
           </div>
 
           <div className="p-5">
-            <div className="rounded-xl border border-dashed border-white/10 px-5 py-10 text-center">
-              <p className="text-sm text-white/35">
-                Sem sessões, gravações, eventos, reuniões ou entregas agendadas.
-              </p>
-            </div>
+            {loading ? (
+              <p className="text-sm text-white/30 text-center py-10">A carregar...</p>
+            ) : stats.upcoming.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-white/10 px-5 py-10 text-center">
+                <p className="text-sm text-white/35">
+                  Sem trabalhos registados nos próximos 7 dias.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {stats.upcoming.map((job) => (
+                  <div
+                    key={job.id}
+                    className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm text-white/70 truncate">
+                        {job.football_teams?.name || job.client_name}
+                      </p>
+                      <p className="text-xs text-white/25 mt-1 truncate">
+                        {formatDate(job.job_date)} · {job.title}
+                      </p>
+                    </div>
+                    <span className="text-xs text-white/30 shrink-0">
+                      {businessLines.find((line) => line.id === job.business_line)?.icon}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -70,7 +196,10 @@ export default function Dashboard() {
           <div className="p-5 space-y-3">
             <AttentionRow label="Follow-ups atrasados" value="0" />
             <AttentionRow label="Propostas sem resposta" value="0" />
-            <AttentionRow label="Pagamentos em atraso" value="0" />
+            <AttentionRow
+              label="Pagamentos em atraso"
+              value={loading ? "…" : String(stats.overduePayments)}
+            />
           </div>
         </div>
       </section>
@@ -87,40 +216,48 @@ export default function Dashboard() {
         </div>
 
         <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {businessLines.map((line) => (
-            <Link
-              key={line.id}
-              to={`/tomasmondim/ramo/${line.id}`}
-              className="group rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 hover:bg-white/[0.045] hover:border-white/[0.14] transition"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="text-2xl">{line.icon}</div>
-                <span className="text-white/20 group-hover:text-white/50 transition">
-                  ↗
-                </span>
-              </div>
+          {businessLines.map((line) => {
+            const lineStats = stats.byLine[line.id] || { jobs: 0, revenue: 0 };
 
-              <h3 className="mt-5 font-semibold text-lg">{line.name}</h3>
-              <p className="mt-2 text-sm text-white/40 min-h-[40px]">
-                {line.description}
-              </p>
+            return (
+              <Link
+                key={line.id}
+                to={"/tomasmondim/ramo/" + line.id}
+                className="group rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 hover:bg-white/[0.045] hover:border-white/[0.14] transition"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="text-2xl">{line.icon}</div>
+                  <span className="text-white/20 group-hover:text-white/50 transition">
+                    ↗
+                  </span>
+                </div>
 
-              <div className="mt-5 pt-4 border-t border-white/[0.06] grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.14em] text-white/20">
-                    Pipeline
-                  </p>
-                  <p className="text-sm text-white/70 mt-1">0 €</p>
+                <h3 className="mt-5 font-semibold text-lg">{line.name}</h3>
+                <p className="mt-2 text-sm text-white/40 min-h-[40px]">
+                  {line.description}
+                </p>
+
+                <div className="mt-5 pt-4 border-t border-white/[0.06] grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-white/20">
+                      Receita
+                    </p>
+                    <p className="text-sm text-white/70 mt-1">
+                      {loading ? "…" : money(lineStats.revenue)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-white/20">
+                      Trabalhos
+                    </p>
+                    <p className="text-sm text-white/70 mt-1">
+                      {loading ? "…" : String(lineStats.jobs)}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.14em] text-white/20">
-                    Trabalhos
-                  </p>
-                  <p className="text-sm text-white/70 mt-1">0</p>
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </section>
 
@@ -144,7 +281,7 @@ export default function Dashboard() {
           <div className="p-5">
             <div className="rounded-xl border border-dashed border-white/10 px-5 py-10 text-center">
               <p className="text-sm text-white/35">
-                Ainda não existem tarefas. Follow-ups, entregas, cobranças e ações de projeto vão aparecer aqui.
+                As tarefas ficam nesta área quando o módulo de tarefas estiver ligado aos trabalhos e leads.
               </p>
             </div>
           </div>
@@ -177,4 +314,41 @@ function AttentionRow({ label, value }) {
       <span className="text-sm font-semibold text-white">{value}</span>
     </div>
   );
+}
+
+function sum(items, field) {
+  return items.reduce((total, item) => total + Number(item[field] || 0), 0);
+}
+
+function sameMonth(value, referenceDate) {
+  if (!value) return false;
+  const date = parseDate(value);
+  return (
+    date.getFullYear() === referenceDate.getFullYear() &&
+    date.getMonth() === referenceDate.getMonth()
+  );
+}
+
+function parseDate(value) {
+  return new Date(value + "T12:00:00");
+}
+
+function startOfDay(value) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function money(value) {
+  return new Intl.NumberFormat("pt-PT", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+}
+
+function formatDate(value) {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("pt-PT", {
+    day: "2-digit",
+    month: "short",
+  }).format(parseDate(value));
 }
