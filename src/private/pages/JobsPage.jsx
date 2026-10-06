@@ -223,7 +223,12 @@ export default function JobsPage() {
                   <p className="text-xs text-white/30 mt-1">{job.title}</p>
                 </div>
                 <div className="md:col-span-2 text-sm text-white/45">
-                  {line ? line.icon + " " + line.name : job.business_line}
+                  <p>{line ? line.icon + " " + line.name : job.business_line}</p>
+                  {job.business_line === "futebol" && (
+                    <p className="text-xs text-white/25 mt-1">
+                      Época {footballSeason(job.job_date)}
+                    </p>
+                  )}
                 </div>
                 <div className="md:col-span-2 md:text-right text-sm font-medium">{money(job.revenue)}</div>
                 <div className="md:col-span-2"><PaymentBadge value={job.payment_status} /></div>
@@ -258,6 +263,11 @@ export default function JobsPage() {
                 </Field>
                 <Field label="Data">
                   <input type="date" min="2026-01-01" max="2026-12-31" value={form.job_date} onChange={(e) => setForm({ ...form, job_date: e.target.value })} required className={inputClass} />
+                  {form.business_line === "futebol" && form.job_date && (
+                    <span className="block mt-2 text-xs text-white/30">
+                      Época assumida automaticamente: {footballSeason(form.job_date)}
+                    </span>
+                  )}
                 </Field>
               </div>
 
@@ -342,4 +352,23 @@ function money(value) {
 function formatDate(value) {
   if (!value) return "—";
   return new Intl.DateTimeFormat("pt-PT", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value + "T12:00:00"));
+}
+
+
+function footballSeason(value) {
+  if (!value) return "—";
+
+  const [yearString, monthString] = value.split("-");
+  const year = Number(yearString);
+  const month = Number(monthString);
+
+  if (month >= 8) {
+    return year + "/" + String(year + 1).slice(-2);
+  }
+
+  if (month <= 6) {
+    return year - 1 + "/" + String(year).slice(-2);
+  }
+
+  return "fora de época";
 }
