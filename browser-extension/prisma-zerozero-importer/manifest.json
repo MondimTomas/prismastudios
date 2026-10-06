@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "Prisma ZeroZero Importer",
+  "version": "1.0.0",
+  "description": "Importa plantéis públicos do ZeroZero para o Prisma Workspace usando o browser local.",
+  "permissions": [
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.zerozero.pt/*",
+    "https://zerozero.pt/*",
+    "https://prismastudios.pt/*",
+    "https://www.prismastudios.pt/*",
+    "https://prismastudios.com/*",
+    "https://www.prismastudios.com/*",
+    "https://*.vercel.app/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://prismastudios.pt/*",
+        "https://www.prismastudios.pt/*",
+        "https://prismastudios.com/*",
+        "https://www.prismastudios.com/*",
+        "https://*.vercel.app/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "prisma-content.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.zerozero.pt/*",
+        "https://zerozero.pt/*"
+      ],
+      "js": [
+        "zerozero-content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
