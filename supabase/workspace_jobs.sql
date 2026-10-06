@@ -18,6 +18,11 @@ create table if not exists public.workspace_jobs (
 
 alter table public.workspace_jobs enable row level security;
 
+drop policy if exists "workspace_jobs_select_own" on public.workspace_jobs;
+drop policy if exists "workspace_jobs_insert_own" on public.workspace_jobs;
+drop policy if exists "workspace_jobs_update_own" on public.workspace_jobs;
+drop policy if exists "workspace_jobs_delete_own" on public.workspace_jobs;
+
 create policy "workspace_jobs_select_own"
 on public.workspace_jobs
 for select
