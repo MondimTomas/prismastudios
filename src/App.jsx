@@ -38,6 +38,7 @@ import TasksPage from "./private/pages/TasksPage";
 import FinancePage from "./private/pages/FinancePage";
 import PlaybookPage from "./private/pages/PlaybookPage";
 import CalendarPage from "./private/pages/CalendarPage";
+import JobsPage from "./private/pages/JobsPage";
 import ProtectedRoute from "./private/ProtectedRoute";
 
 function PrivatePage({ children }) {
@@ -135,6 +136,14 @@ export default function App() {
         element={
           <PrivatePage>
             <BusinessLinePage />
+          </PrivatePage>
+        }
+      />
+      <Route
+        path="/tomasmondim/trabalhos"
+        element={
+          <PrivatePage>
+            <JobsPage />
           </PrivatePage>
         }
       />
