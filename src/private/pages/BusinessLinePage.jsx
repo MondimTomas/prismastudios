@@ -106,6 +106,9 @@ export default function BusinessLinePage() {
       {activeSection === "work" && (
         <Work line={line} jobs={jobs} loading={loadingData} />
       )}
+      {activeSection === "teams" && line.id === "futebol" && (
+        <Teams teams={footballTeams} jobs={jobs} loading={loadingData} />
+      )}
       {activeSection === "recurring" && <RecurringClients line={line} />}
       {activeSection === "active" && <ActiveClients line={line} />}
       {activeSection === "lost" && <LostClients />}
@@ -275,9 +278,18 @@ function Work({ line, jobs, loading }) {
                   {formatDate(job.job_date)}
                 </span>
                 <div className="min-w-0">
-                  <p className="text-sm text-white/70 truncate">
-                    {job.football_teams?.name || job.client_name}
-                  </p>
+                  {job.team_id ? (
+                    <Link
+                      to={"/tomasmondim/futebol/equipas/" + job.team_id}
+                      className="text-sm text-white/70 hover:text-[#B89A84] transition truncate block"
+                    >
+                      {job.football_teams?.name || job.client_name}
+                    </Link>
+                  ) : (
+                    <p className="text-sm text-white/70 truncate">
+                      {job.client_name}
+                    </p>
+                  )}
                   <p className="text-xs text-white/25 mt-1 truncate">
                     {job.title}
                     {job.football_teams?.season ? " · " + job.football_teams.season : ""}
@@ -306,6 +318,87 @@ function Work({ line, jobs, loading }) {
         </div>
       </div>
     </section>
+  );
+}
+
+function Teams({ teams, jobs, loading }) {
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] px-5 py-16 text-center text-sm text-white/30">
+        A carregar equipas...
+      </div>
+    );
+  }
+
+  if (teams.length === 0) {
+    return (
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025]">
+        <PanelHeader eyebrow="Futebol" title="Equipas por época" />
+        <EmptyState>
+          Ainda não tens equipas registadas. A primeira equipa é criada quando adicionares um trabalho de Futebol.
+        </EmptyState>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex items-end justify-between gap-4 mb-5">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.22em] text-white/30">
+            Futebol
+          </p>
+          <h2 className="text-xl font-semibold mt-1">Equipas por época</h2>
+        </div>
+        <span className="text-xs text-white/25">{teams.length} equipas</span>
+      </div>
+
+      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {teams.map((team) => {
+          const teamJobs = jobs.filter((job) => job.team_id === team.id);
+          const revenue = teamJobs.reduce(
+            (total, job) => total + Number(job.revenue || 0),
+            0
+          );
+          const lastJob = teamJobs
+            .map((job) => job.job_date)
+            .filter(Boolean)
+            .sort()
+            .at(-1);
+
+          return (
+            <Link
+              key={team.id}
+              to={"/tomasmondim/futebol/equipas/" + team.id}
+              className="group rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 hover:bg-white/[0.045] hover:border-white/[0.14] transition"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs text-[#B89A84]">Época {team.season}</p>
+                  <h3 className="text-lg font-semibold mt-1">{team.name}</h3>
+                </div>
+                <span className="text-white/20 group-hover:text-white/55 transition">↗</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 mt-6 pt-4 border-t border-white/[0.06]">
+                <MiniValue label="Trabalhos" value={String(teamJobs.length)} />
+                <MiniValue label="Receita" value={money(revenue)} />
+                <MiniValue label="Último" value={lastJob ? formatShortDate(lastJob) : "—"} />
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+function MiniValue({ label, value }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] uppercase tracking-[0.12em] text-white/20">{label}</p>
+      <p className="text-sm text-white/65 mt-1 truncate">{value}</p>
+    </div>
   );
 }
 
@@ -556,6 +649,14 @@ function formatDate(value) {
     day: "2-digit",
     month: "short",
     year: "numeric",
+  }).format(new Date(value + "T12:00:00"));
+}
+
+function formatShortDate(value) {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("pt-PT", {
+    day: "2-digit",
+    month: "short",
   }).format(new Date(value + "T12:00:00"));
 }
 
