@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { businessLines } from "../workspaceData";
+import GlobalCreateMenu from "./GlobalCreateMenu";
 
 function navClass({ isActive }) {
   return [
@@ -62,6 +63,10 @@ export default function WorkspaceLayout({ children, title, eyebrow, actions }) {
             <span>✓</span>
             <span>Tarefas</span>
           </NavLink>
+          <NavLink to="/tomasmondim/calendario" className={navClass}>
+            <span>□</span>
+            <span>Calendário</span>
+          </NavLink>
           <NavLink to="/tomasmondim/financeiro" className={navClass}>
             <span>€</span>
             <span>Financeiro</span>
@@ -99,7 +104,10 @@ export default function WorkspaceLayout({ children, title, eyebrow, actions }) {
               </h1>
             </div>
 
-            <div className="flex items-center gap-2">{actions}</div>
+            <div className="flex items-center gap-2">
+              {actions}
+              <GlobalCreateMenu />
+            </div>
           </div>
 
           <div className="lg:hidden overflow-x-auto scrollbar-hide border-t border-white/[0.05]">
@@ -121,6 +129,9 @@ export default function WorkspaceLayout({ children, title, eyebrow, actions }) {
               </NavLink>
               <NavLink to="/tomasmondim/tarefas" className={navClass}>
                 Tarefas
+              </NavLink>
+              <NavLink to="/tomasmondim/calendario" className={navClass}>
+                Calendário
               </NavLink>
               <NavLink to="/tomasmondim/financeiro" className={navClass}>
                 Financeiro
