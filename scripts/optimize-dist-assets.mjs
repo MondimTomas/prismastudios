@@ -174,13 +174,25 @@ async function rewriteReferences(files, conversions) {
     }
 
     const original = content;
+    const placeholders = [];
 
-    for (const conversion of conversions) {
-      for (const [from, to] of replacementVariants(
+    conversions.forEach((conversion, index) => {
+      const placeholder = `__PRISMA_REMOTE_ASSET_${index}__`;
+      placeholders.push([placeholder, conversion.publicUrl]);
+
+      for (const [from] of replacementVariants(
         conversion.oldRel,
         conversion.publicUrl,
       )) {
-        if (content.includes(from)) content = content.split(from).join(to);
+        if (content.includes(from)) {
+          content = content.split(from).join(placeholder);
+        }
+      }
+    });
+
+    for (const [placeholder, publicUrl] of placeholders) {
+      if (content.includes(placeholder)) {
+        content = content.split(placeholder).join(publicUrl);
       }
     }
 
