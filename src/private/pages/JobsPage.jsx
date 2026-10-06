@@ -384,7 +384,13 @@ export default function JobsPage() {
             .from("workspace_job_players")
             .insert(links);
 
-          if (linkError) throw linkError;
+          if (linkError) {
+            await supabase
+              .from("workspace_jobs")
+              .delete()
+              .eq("id", insertedJob.id);
+            throw linkError;
+          }
         }
       }
 
