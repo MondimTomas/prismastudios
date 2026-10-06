@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { getBusinessLine } from "../workspaceData";
 
 export default function GlobalCreateMenu() {
+  const navigate = useNavigate();
   const { lineId } = useParams();
   const line = getBusinessLine(lineId);
   const [open, setOpen] = useState(false);
@@ -22,7 +23,14 @@ export default function GlobalCreateMenu() {
   const items = [
     { label: "Lead", hint: line ? `em ${line.name}` : "escolher ramo" },
     { label: "Cliente", hint: "global" },
-    { label: "Trabalho", hint: line ? `${line.workLabel} · ${line.name}` : "escolher ramo" },
+    {
+      label: "Trabalho",
+      hint: line ? `${line.workLabel} · ${line.name}` : "histórico / novo",
+      action: () => {
+        const query = line ? `?novo=1&ramo=${line.id}` : "?novo=1";
+        navigate("/tomasmondim/trabalhos" + query);
+      },
+    },
     { label: "Tarefa", hint: "follow-up ou execução" },
     { label: "Receita / Despesa", hint: "financeiro" },
   ];
@@ -49,7 +57,10 @@ export default function GlobalCreateMenu() {
             <button
               key={item.label}
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                item.action?.();
+              }}
               className="w-full rounded-xl px-3 py-3 text-left hover:bg-white/[0.05] transition"
               title="A criação real fica ativa quando ligarmos estas entidades ao Supabase"
             >
