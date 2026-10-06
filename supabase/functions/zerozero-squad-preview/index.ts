@@ -189,6 +189,10 @@ async function fetchZeroZeroPage(initialUrl: URL) {
         error: browserless.error,
       }),
     );
+
+    throw new Error(
+      "O browser agent abriu a página, mas não conseguiu identificar um plantel válido. Consulta os logs do Browserless/Supabase para ver a etapa exata."
+    );
   } else {
     console.log(
       JSON.stringify({
@@ -276,174 +280,167 @@ async function fetchWithBrowserless(
   targetUrl: URL,
   token: string,
 ) {
-  const regions = [
-    "https://production-lon.browserless.io",
-    "https://production-ams.browserless.io",
-    "https://production-sfo.browserless.io",
-  ];
+  const base = "https://production-lon.browserless.io";
 
-  let last = {
-    ok: false,
-    status: 0,
-    body: "",
-    mode: "none",
-    error: "",
-  };
+  console.log(
+    JSON.stringify({
+      event: "zerozero_stage",
+      stage: "browserless_unblock_start",
+      target: targetUrl.toString(),
+    }),
+  );
 
-  for (const base of regions) {
-    const unblockUrl =
-      base +
-      "/unblock?token=" +
-      encodeURIComponent(token) +
-      "&proxy=residential&proxyCountry=pt&proxySticky=true&timeout=45000";
+  const unblockUrl =
+    base +
+    "/unblock?token=" +
+    encodeURIComponent(token) +
+    "&proxy=residential&proxyCountry=pt&proxySticky=true&timeout=25000";
+
+  try {
+    const startedAt = Date.now();
+    const response = await fetch(unblockUrl, {
+      method: "POST",
+      signal: AbortSignal.timeout(30000),
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        url: targetUrl.toString(),
+        content: true,
+        cookies: false,
+        screenshot: false,
+        browserWSEndpoint: false,
+      }),
+    });
+
+    const raw = await response.text();
+    let payload: any = null;
 
     try {
-      const response = await fetch(unblockUrl, {
-        method: "POST",
-        signal: AbortSignal.timeout(50000),
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          url: targetUrl.toString(),
-          content: true,
-          cookies: false,
-          screenshot: false,
-          browserWSEndpoint: false,
-        }),
-      });
+      payload = JSON.parse(raw);
+    } catch {
+      payload = null;
+    }
 
-      const raw = await response.text();
-      let payload: any = null;
+    const html =
+      typeof payload?.content === "string"
+        ? payload.content
+        : "";
 
-      try {
-        payload = JSON.parse(raw);
-      } catch {
-        payload = null;
-      }
+    const useful = looksUsefulZeroZeroBody(html);
 
-      const html =
-        typeof payload?.content === "string"
-          ? payload.content
-          : "";
-
-      last = {
-        ok: response.ok && Boolean(html),
+    console.log(
+      JSON.stringify({
+        event: "zerozero_stage",
+        stage: "browserless_unblock_done",
         status: response.status,
-        body: html,
-        mode: "unblock-residential:" + new URL(base).hostname,
+        duration_ms: Date.now() - startedAt,
+        body_length: html.length,
+        useful,
+        title: extractDebugTitle(html),
+        has_plantel: /plantel/i.test(html),
+        player_links: (html.match(/\/jogador\//gi) || []).length,
         error:
           typeof payload?.message === "string"
             ? payload.message
             : typeof payload?.error === "string"
               ? payload.error
-              : response.ok
-                ? ""
-                : raw.slice(0, 300),
-      };
+              : "",
+      }),
+    );
 
-      if (last.ok && looksUsefulZeroZeroBody(last.body)) {
-        return last;
-      }
-    } catch (error) {
-      last = {
-        ok: false,
-        status: 0,
-        body: "",
-        mode: "unblock-residential:" + new URL(base).hostname,
-        error: error instanceof Error ? error.message : "Browserless request failed.",
+    if (response.ok && html && useful) {
+      return {
+        ok: true,
+        status: response.status,
+        body: html,
+        mode: "unblock-residential-london",
+        error: "",
       };
     }
-  }
 
-  for (const base of regions) {
+    console.log(
+      JSON.stringify({
+        event: "zerozero_stage",
+        stage: "browserless_content_start",
+      }),
+    );
+
     const contentUrl =
       base +
       "/content?token=" +
       encodeURIComponent(token) +
-      "&stealth=true&proxy=residential&proxyCountry=pt&proxySticky=true&timeout=45000";
+      "&stealth=true&proxy=residential&proxyCountry=pt&proxySticky=true&timeout=20000";
 
-    try {
-      const response = await fetch(contentUrl, {
-        method: "POST",
-        signal: AbortSignal.timeout(50000),
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "text/html",
-          "Cache-Control": "no-cache",
-        },
-        body: JSON.stringify({
-          url: targetUrl.toString(),
-        }),
-      });
-
-      const html = await response.text();
-
-      last = {
-        ok: response.ok && Boolean(html),
-        status: response.status,
-        body: html,
-        mode: "content-residential:" + new URL(base).hostname,
-        error: response.ok ? "" : html.slice(0, 300),
-      };
-
-      if (last.ok && looksUsefulZeroZeroBody(last.body)) {
-        return last;
-      }
-    } catch (error) {
-      last = {
-        ok: false,
-        status: 0,
-        body: "",
-        mode: "content-residential:" + new URL(base).hostname,
-        error: error instanceof Error ? error.message : "Browserless request failed.",
-      };
-    }
-  }
-
-  // Final attempt without the residential proxy in case the account has no proxy units.
-  const plainBase = regions[0];
-  const plainUrl =
-    plainBase +
-    "/content?token=" +
-    encodeURIComponent(token) +
-    "&stealth=true&timeout=45000";
-
-  try {
-    const response = await fetch(plainUrl, {
+    const contentStartedAt = Date.now();
+    const contentResponse = await fetch(contentUrl, {
       method: "POST",
-      signal: AbortSignal.timeout(50000),
+      signal: AbortSignal.timeout(25000),
       headers: {
         "Content-Type": "application/json",
         Accept: "text/html",
-        "Cache-Control": "no-cache",
       },
       body: JSON.stringify({
         url: targetUrl.toString(),
       }),
     });
 
-    const html = await response.text();
+    const contentHtml = await contentResponse.text();
+    const contentUseful = looksUsefulZeroZeroBody(contentHtml);
 
-    last = {
-      ok: response.ok && Boolean(html),
-      status: response.status,
-      body: html,
-      mode: "content-stealth-no-proxy",
-      error: response.ok ? "" : html.slice(0, 300),
+    console.log(
+      JSON.stringify({
+        event: "zerozero_stage",
+        stage: "browserless_content_done",
+        status: contentResponse.status,
+        duration_ms: Date.now() - contentStartedAt,
+        body_length: contentHtml.length,
+        useful: contentUseful,
+        title: extractDebugTitle(contentHtml),
+        has_plantel: /plantel/i.test(contentHtml),
+        player_links: (contentHtml.match(/\/jogador\//gi) || []).length,
+      }),
+    );
+
+    return {
+      ok: contentResponse.ok && Boolean(contentHtml),
+      status: contentResponse.status,
+      body: contentHtml,
+      mode: "content-residential-london",
+      error: contentResponse.ok
+        ? ""
+        : contentHtml.slice(0, 250),
     };
   } catch (error) {
-    last = {
+    const message =
+      error instanceof Error ? error.message : "Browserless request failed.";
+
+    console.log(
+      JSON.stringify({
+        event: "zerozero_stage",
+        stage: "browserless_exception",
+        error: message,
+      }),
+    );
+
+    return {
       ok: false,
       status: 0,
       body: "",
-      mode: "content-stealth-no-proxy",
-      error: error instanceof Error ? error.message : "Browserless request failed.",
+      mode: "browserless-london",
+      error: message,
     };
   }
+}
 
-  return last;
+function extractDebugTitle(html: string) {
+  const match = html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i);
+  if (!match) return null;
+
+  return normalizeWhitespace(
+    decodeEntities(match[1].replace(/<[^>]+>/g, " ")),
+  ).slice(0, 160);
 }
 
 function buildCandidateUrls(initialUrl: URL) {
