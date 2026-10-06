@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import WorkspaceLayout from "../components/WorkspaceLayout";
 import { supabase } from "../../lib/supabase";
@@ -33,6 +33,9 @@ export default function FootballTeamPage() {
   const [importingZerozero, setImportingZerozero] = useState(false);
   const [importMessage, setImportMessage] = useState("");
   const [zerozeroError, setZerozeroError] = useState("");
+  const [zerozeroExtensionAvailable, setZerozeroExtensionAvailable] = useState(false);
+  const zerozeroRequestRef = useRef(null);
+  const zerozeroTimeoutRef = useRef(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -113,6 +116,57 @@ export default function FootballTeamPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    function handleExtensionMessage(event) {
+      if (event.source !== window) return;
+      const message = event.data;
+      if (message?.source !== "prisma-zerozero-extension") return;
+
+      if (message.type === "ZEROZERO_EXTENSION_READY") {
+        setZerozeroExtensionAvailable(true);
+        return;
+      }
+
+      const currentRequest = zerozeroRequestRef.current;
+      if (!currentRequest || message.requestId !== currentRequest.requestId) return;
+
+      if (zerozeroTimeoutRef.current) {
+        window.clearTimeout(zerozeroTimeoutRef.current);
+        zerozeroTimeoutRef.current = null;
+      }
+
+      zerozeroRequestRef.current = null;
+      setPreviewingZerozero(false);
+
+      if (message.type === "PRISMA_ZEROZERO_IMPORT_ERROR") {
+        setZerozeroError(message.error || "Não foi possível ler o plantel.");
+        return;
+      }
+
+      if (message.type === "PRISMA_ZEROZERO_IMPORT_RESULT") {
+        applyZerozeroPreview(message.data, currentRequest.url).catch((previewError) => {
+          setZerozeroError(
+            previewError?.message ||
+              "O plantel foi lido, mas não foi possível preparar a pré-visualização."
+          );
+        });
+      }
+    }
+
+    window.addEventListener("message", handleExtensionMessage);
+    window.postMessage(
+      { source: "prisma-workspace", type: "PING_ZEROZERO_EXTENSION" },
+      "*"
+    );
+
+    return () => {
+      window.removeEventListener("message", handleExtensionMessage);
+      if (zerozeroTimeoutRef.current) {
+        window.clearTimeout(zerozeroTimeoutRef.current);
+      }
+    };
+  }, [teamId]);
 
   const stats = useMemo(() => {
     const revenue = jobs.reduce(
