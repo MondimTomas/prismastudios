@@ -13,6 +13,7 @@ export const businessLines = [
       { id: "overview", label: "Visão Geral" },
       { id: "leads", label: "Leads" },
       { id: "work", label: "Sessões" },
+      { id: "teams", label: "Equipas" },
       { id: "sops", label: "SOPs" },
     ],
     metrics: [
