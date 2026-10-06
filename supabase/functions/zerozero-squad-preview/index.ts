@@ -154,6 +154,49 @@ function validateZeroZeroUrl(raw: string) {
 }
 
 async function fetchZeroZeroPage(initialUrl: URL) {
+  const browserlessToken = Deno.env.get("BROWSERLESS_TOKEN")?.trim();
+
+  if (browserlessToken) {
+    const browserless = await fetchWithBrowserless(
+      initialUrl,
+      browserlessToken,
+    );
+
+    if (browserless.ok && looksUsefulZeroZeroBody(browserless.body)) {
+      console.log(
+        JSON.stringify({
+          event: "zerozero_browserless_success",
+          mode: browserless.mode,
+          status: browserless.status,
+          body_length: browserless.body.length,
+        }),
+      );
+
+      return {
+        body: browserless.body,
+        source: "browserless:" + browserless.mode,
+        directStatus: browserless.status,
+        pageUrl: initialUrl.toString(),
+      };
+    }
+
+    console.log(
+      JSON.stringify({
+        event: "zerozero_browserless_failed",
+        mode: browserless.mode,
+        status: browserless.status,
+        body_length: browserless.body.length,
+        error: browserless.error,
+      }),
+    );
+  } else {
+    console.log(
+      JSON.stringify({
+        event: "zerozero_browserless_missing_token",
+      }),
+    );
+  }
+
   const candidates = buildCandidateUrls(initialUrl);
   const attempts: Array<{
     source: string;
@@ -218,9 +261,189 @@ async function fetchZeroZeroPage(initialUrl: URL) {
     }),
   );
 
+  if (!browserlessToken) {
+    throw new Error(
+      "O Browserless ainda não está configurado no Supabase. Confirma o secret BROWSERLESS_TOKEN."
+    );
+  }
+
   throw new Error(
-    "O ZeroZero está a bloquear a leitura automática desta equipa. Não foi possível obter o plantel através das rotas alternativas."
+    "O Browserless não conseguiu obter um plantel válido desta página. Verifica os créditos/limites da conta Browserless e tenta novamente."
   );
+}
+
+async function fetchWithBrowserless(
+  targetUrl: URL,
+  token: string,
+) {
+  const regions = [
+    "https://production-lon.browserless.io",
+    "https://production-ams.browserless.io",
+    "https://production-sfo.browserless.io",
+  ];
+
+  let last = {
+    ok: false,
+    status: 0,
+    body: "",
+    mode: "none",
+    error: "",
+  };
+
+  for (const base of regions) {
+    const unblockUrl =
+      base +
+      "/unblock?token=" +
+      encodeURIComponent(token) +
+      "&proxy=residential&proxyCountry=pt&proxySticky=true&timeout=45000";
+
+    try {
+      const response = await fetch(unblockUrl, {
+        method: "POST",
+        signal: AbortSignal.timeout(50000),
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          url: targetUrl.toString(),
+          content: true,
+          cookies: false,
+          screenshot: false,
+          browserWSEndpoint: false,
+        }),
+      });
+
+      const raw = await response.text();
+      let payload: any = null;
+
+      try {
+        payload = JSON.parse(raw);
+      } catch {
+        payload = null;
+      }
+
+      const html =
+        typeof payload?.content === "string"
+          ? payload.content
+          : "";
+
+      last = {
+        ok: response.ok && Boolean(html),
+        status: response.status,
+        body: html,
+        mode: "unblock-residential:" + new URL(base).hostname,
+        error:
+          typeof payload?.message === "string"
+            ? payload.message
+            : typeof payload?.error === "string"
+              ? payload.error
+              : response.ok
+                ? ""
+                : raw.slice(0, 300),
+      };
+
+      if (last.ok && looksUsefulZeroZeroBody(last.body)) {
+        return last;
+      }
+    } catch (error) {
+      last = {
+        ok: false,
+        status: 0,
+        body: "",
+        mode: "unblock-residential:" + new URL(base).hostname,
+        error: error instanceof Error ? error.message : "Browserless request failed.",
+      };
+    }
+  }
+
+  for (const base of regions) {
+    const contentUrl =
+      base +
+      "/content?token=" +
+      encodeURIComponent(token) +
+      "&stealth=true&proxy=residential&proxyCountry=pt&proxySticky=true&timeout=45000";
+
+    try {
+      const response = await fetch(contentUrl, {
+        method: "POST",
+        signal: AbortSignal.timeout(50000),
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "text/html",
+          "Cache-Control": "no-cache",
+        },
+        body: JSON.stringify({
+          url: targetUrl.toString(),
+        }),
+      });
+
+      const html = await response.text();
+
+      last = {
+        ok: response.ok && Boolean(html),
+        status: response.status,
+        body: html,
+        mode: "content-residential:" + new URL(base).hostname,
+        error: response.ok ? "" : html.slice(0, 300),
+      };
+
+      if (last.ok && looksUsefulZeroZeroBody(last.body)) {
+        return last;
+      }
+    } catch (error) {
+      last = {
+        ok: false,
+        status: 0,
+        body: "",
+        mode: "content-residential:" + new URL(base).hostname,
+        error: error instanceof Error ? error.message : "Browserless request failed.",
+      };
+    }
+  }
+
+  // Final attempt without the residential proxy in case the account has no proxy units.
+  const plainBase = regions[0];
+  const plainUrl =
+    plainBase +
+    "/content?token=" +
+    encodeURIComponent(token) +
+    "&stealth=true&timeout=45000";
+
+  try {
+    const response = await fetch(plainUrl, {
+      method: "POST",
+      signal: AbortSignal.timeout(50000),
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/html",
+        "Cache-Control": "no-cache",
+      },
+      body: JSON.stringify({
+        url: targetUrl.toString(),
+      }),
+    });
+
+    const html = await response.text();
+
+    last = {
+      ok: response.ok && Boolean(html),
+      status: response.status,
+      body: html,
+      mode: "content-stealth-no-proxy",
+      error: response.ok ? "" : html.slice(0, 300),
+    };
+  } catch (error) {
+    last = {
+      ok: false,
+      status: 0,
+      body: "",
+      mode: "content-stealth-no-proxy",
+      error: error instanceof Error ? error.message : "Browserless request failed.",
+    };
+  }
+
+  return last;
 }
 
 function buildCandidateUrls(initialUrl: URL) {
