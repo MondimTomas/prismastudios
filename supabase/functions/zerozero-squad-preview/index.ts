@@ -62,7 +62,6 @@ Deno.serve(async (req: Request) => {
         event: "zerozero_preview",
         fetch_source: fetched.source,
         direct_status: fetched.directStatus,
-        fetch_source: fetched.source,
         page_url: fetched.pageUrl,
         players: parsed.players.length,
         body_length: fetched.body.length,
@@ -571,11 +570,29 @@ async function fetchWithJinaReader(targetUrl: URL) {
 
 function looksUsefulZeroZeroBody(body: string) {
   if (!body || body.length < 1000) return false;
+
+  const title = extractDebugTitle(body) || "";
+  const playerLinks = (body.match(/\/jogador\//gi) || []).length;
+  const hasPlantel = /plantel/i.test(body);
+
+  // Strong positive signal: this is a real ZeroZero team page with a rendered squad.
+  // Do this before generic anti-bot text checks because legitimate page source can
+  // contain words such as "forbidden" or "access denied" inside scripts/styles.
+  if (
+    playerLinks >= 5 &&
+    hasPlantel &&
+    /zerozero|jogos|classifica[cç][oõ]es|estat[ií]sticas|vit[oó]ria|equipa/i.test(
+      title + " " + body.slice(0, 30000),
+    )
+  ) {
+    return true;
+  }
+
   if (looksLikeBotProtection(body)) return false;
 
   return (
-    /plantel/i.test(body) ||
-    /\/jogador\//i.test(body) ||
+    hasPlantel ||
+    playerLinks >= 3 ||
     /guarda[\s-]*redes/i.test(body) ||
     /\bdefesa\b/i.test(body) ||
     /\bm[eé]dio\b/i.test(body) ||
