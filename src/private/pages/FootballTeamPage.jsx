@@ -33,6 +33,8 @@ export default function FootballTeamPage() {
   const [importingZerozero, setImportingZerozero] = useState(false);
   const [importMessage, setImportMessage] = useState("");
   const [zerozeroError, setZerozeroError] = useState("");
+  const [showPasteImport, setShowPasteImport] = useState(false);
+  const [pastedSquad, setPastedSquad] = useState("");
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -312,6 +314,34 @@ export default function FootballTeamPage() {
 
     setZerozeroPreview(preview);
     setSelectedImportKeys(previewPlayers.map((player) => player.importKey));
+  }
+
+  function previewPastedSquad() {
+    const parsedPlayers = parsePastedSquad(pastedSquad);
+
+    if (parsedPlayers.length === 0) {
+      setZerozeroError(
+        "Não consegui reconhecer jogadores nesse texto. Copia a secção Plantel do ZeroZero, incluindo os títulos das posições."
+      );
+      return;
+    }
+
+    const previewPlayers = parsedPlayers.map((player, index) => ({
+      ...player,
+      importKey: buildImportKey(player, index),
+    }));
+
+    setZerozeroPreview({
+      source: "zerozero-paste",
+      sourceUrl: zerozeroUrl.trim() || null,
+      teamName: team?.name || null,
+      season: team?.season || null,
+      players: previewPlayers,
+      parserVersion: "paste-1",
+    });
+    setSelectedImportKeys(previewPlayers.map((player) => player.importKey));
+    setZerozeroError("");
+    setImportMessage("");
   }
 
   function toggleImportPlayer(importKey) {
@@ -681,6 +711,43 @@ export default function FootballTeamPage() {
                 </div>
               )}
 
+              <div className="mt-4 pt-4 border-t border-white/[0.06]">
+                <button
+                  type="button"
+                  onClick={() => setShowPasteImport((value) => !value)}
+                  className="text-xs text-[#B89A84] hover:text-white transition"
+                >
+                  {showPasteImport
+                    ? "Fechar importação por texto"
+                    : "O URL não funciona? Colar plantel manualmente →"}
+                </button>
+
+                {showPasteImport && (
+                  <div className="mt-3">
+                    <Field label="Texto do plantel">
+                      <textarea
+                        value={pastedSquad}
+                        onChange={(e) => setPastedSquad(e.target.value)}
+                        rows={10}
+                        placeholder={"Copia a secção Plantel do ZeroZero e cola aqui.\n\nExemplo:\nGuarda Redes\n1\nJoão Silva\n17 anos\nDefesa\n2\nPedro Costa\n17 anos"}
+                        className={inputClass}
+                      />
+                    </Field>
+
+                    <div className="flex justify-end mt-3">
+                      <button
+                        type="button"
+                        onClick={previewPastedSquad}
+                        disabled={!pastedSquad.trim()}
+                        className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-white/60 hover:text-white disabled:opacity-40 transition"
+                      >
+                        Pré-visualizar texto
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <p className="text-[11px] text-white/20 mt-3">
                 A importação é manual e só acontece depois da tua confirmação. Se o ZeroZero alterar a página ou bloquear pedidos automáticos, mostramos o erro sem alterar o plantel.
               </p>
@@ -986,6 +1053,82 @@ function Metric({ label, value }) {
       <p className="mt-3 text-2xl font-semibold">{value}</p>
     </div>
   );
+}
+
+function parsePastedSquad(text) {
+  const lines = String(text || "")
+    .replace(/\u00a0/g, " ")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  const positionMap = new Map([
+    ["guarda redes", "Guarda-Redes"],
+    ["guarda-redes", "Guarda-Redes"],
+    ["defesa", "Defesa"],
+    ["defesas", "Defesa"],
+    ["médio", "Médio"],
+    ["medio", "Médio"],
+    ["médios", "Médio"],
+    ["medios", "Médio"],
+    ["avançado", "Avançado"],
+    ["avancado", "Avançado"],
+    ["avançados", "Avançado"],
+    ["avancados", "Avançado"],
+  ]);
+
+  const players = [];
+  let position = null;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const normalized = line.toLocaleLowerCase("pt-PT").replace(/:$/, "");
+    const nextPosition = positionMap.get(normalized);
+
+    if (nextPosition) {
+      position = nextPosition;
+      continue;
+    }
+
+    if (!position) continue;
+    if (!(line === "-" || /^\d{1,2}$/.test(line))) continue;
+
+    const shirtNumber = line === "-" ? null : Number(line);
+    let name = null;
+
+    for (let lookahead = index + 1; lookahead < Math.min(lines.length, index + 5); lookahead += 1) {
+      const candidate = lines[lookahead];
+      const candidateNormalized = candidate
+        .toLocaleLowerCase("pt-PT")
+        .replace(/:$/, "");
+
+      if (positionMap.has(candidateNormalized)) break;
+      if (candidate === "-" || /^\d{1,2}$/.test(candidate)) continue;
+      if (/^\d{1,2}\s*anos?\b/i.test(candidate)) continue;
+      if (/^(valor de mercado|jogadores|média|media)$/i.test(candidate)) continue;
+      if (candidate.length < 2 || candidate.length > 90) continue;
+      if (!/[A-Za-zÀ-ÿ]/.test(candidate)) continue;
+
+      name = candidate;
+      break;
+    }
+
+    if (!name) continue;
+
+    const key = normalizePlayerName(name).toLocaleLowerCase("pt-PT");
+    if (players.some((player) => normalizePlayerName(player.name).toLocaleLowerCase("pt-PT") === key)) {
+      continue;
+    }
+
+    players.push({
+      name: normalizePlayerName(name),
+      shirt_number: shirtNumber,
+      position,
+      source_url: null,
+    });
+  }
+
+  return players;
 }
 
 function buildImportKey(player, index) {
