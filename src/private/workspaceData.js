@@ -1,0 +1,98 @@
+export const businessLines = [
+  {
+    id: "futebol",
+    name: "Futebol",
+    icon: "⚽",
+    eyebrow: "Fotografia desportiva",
+    description: "Fotografia a equipas, treinos e jogos.",
+    offer: "Sessão fotográfica de equipa",
+    pricing: "90 € + deslocação",
+    accent: "emerald",
+    pipeline: ["Prospeção", "Contactada", "Interesse", "Agendada", "Realizada"],
+    metrics: [
+      { label: "Leads abertas", value: "0" },
+      { label: "Sessões este mês", value: "0" },
+      { label: "Receita este mês", value: "0 €" },
+      { label: "Equipas ativas", value: "0" },
+    ],
+    nextActions: [
+      "Criar lista de equipas-alvo",
+      "Definir mensagem de primeiro contacto",
+      "Criar SOP de sessão",
+    ],
+    fields: ["Equipa", "Escalão", "Contacto", "Local", "Distância", "Data pretendida"],
+  },
+  {
+    id: "conteudo",
+    name: "Conteúdo",
+    icon: "🎥",
+    eyebrow: "Produção & edição",
+    description: "Produção, edição e avenças mensais de conteúdo.",
+    offer: "Produção, edição ou produção + edição",
+    pricing: "Projeto ou avença mensal",
+    accent: "amber",
+    pipeline: ["Lead", "Contacto", "Reunião", "Proposta", "Fechado"],
+    metrics: [
+      { label: "Leads abertas", value: "0" },
+      { label: "Clientes mensais", value: "0" },
+      { label: "MRR", value: "0 €" },
+      { label: "Projetos ativos", value: "0" },
+    ],
+    nextActions: [
+      "Definir pacotes de produção",
+      "Criar SOP de captação",
+      "Criar checklist de entrega mensal",
+    ],
+    fields: ["Cliente", "Tipo de serviço", "Formato", "N.º entregas", "Frequência", "Orçamento"],
+  },
+  {
+    id: "redes-sociais",
+    name: "Redes Sociais",
+    icon: "📱",
+    eyebrow: "Gestão mensal",
+    description: "Gestão estratégica e operacional de redes sociais.",
+    offer: "Gestão mensal de redes sociais",
+    pricing: "Avença mensal",
+    accent: "violet",
+    pipeline: ["Lead", "Contacto", "Diagnóstico", "Proposta", "Onboarding"],
+    metrics: [
+      { label: "Leads abertas", value: "0" },
+      { label: "Clientes ativos", value: "0" },
+      { label: "MRR", value: "0 €" },
+      { label: "Clientes perdidos", value: "2" },
+    ],
+    nextActions: [
+      "Documentar motivo de perda dos últimos clientes",
+      "Rever oferta e proposta de valor",
+      "Criar SOP de onboarding",
+    ],
+    fields: ["Empresa", "Contacto", "Redes atuais", "Objetivo", "Problema principal", "Budget mensal"],
+  },
+  {
+    id: "eventos",
+    name: "Eventos",
+    icon: "🎉",
+    eyebrow: "Fotografia & vídeo",
+    description: "Cobertura de eventos em fotografia, vídeo ou ambos.",
+    offer: "Fotografia, vídeo ou cobertura completa",
+    pricing: "Por orçamento",
+    accent: "rose",
+    pipeline: ["Pedido", "Disponibilidade", "Orçamento", "Sinal", "Confirmado"],
+    metrics: [
+      { label: "Pedidos abertos", value: "0" },
+      { label: "Eventos confirmados", value: "0" },
+      { label: "Pipeline", value: "0 €" },
+      { label: "Eventos este mês", value: "0" },
+    ],
+    nextActions: [
+      "Criar formulário de briefing",
+      "Definir checklist pré-evento",
+      "Criar SOP de backup e entrega",
+    ],
+    fields: ["Tipo de evento", "Data", "Local", "Duração", "Foto / Vídeo", "Orçamento"],
+  },
+];
+
+export function getBusinessLine(id) {
+  return businessLines.find((line) => line.id === id);
+}
