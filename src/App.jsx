@@ -1,9 +1,9 @@
-import { Routes, Route } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import PortfolioPage from "./pages/PortfolioPage";
 import AboutPage from "./pages/AboutPage";
 import ServicesPage from "./pages/ServicesPage";
-import ServicosFotosEventos from "./pages/ServicosFotosEventos"; // 👈
+import ServicosFotosEventos from "./pages/ServicosFotosEventos";
 import ServicosFotosDesporto from "./pages/ServicosFotosDesporto";
 import ServicosFotosRetratos from "./pages/ServicosFotosRetratos";
 import ServicosFotosRestauracao from "./pages/ServicosFotosRestauracao";
@@ -20,18 +20,28 @@ import MarketingDesenvolvimentoWeb from "./pages/MarketingDesenvolvimentoWeb";
 import MarketingLeads from "./pages/MarketingLeads";
 import StudioPage from "./pages/StudioPage";
 import AluguerPage from "./pages/AluguerPage";
-import BlogPage from "./pages/BlogPage";           // 👈 novo
+import BlogPage from "./pages/BlogPage";
 import BlogPostPage from "./pages/BlogPostPage";
 import ContactPage from "./pages/ContactPage";
 import LookbookConcertos from "./pages/LookbookConcertos";
 import LookbookCasamentosBatizados from "./pages/LookbookCasamentos";
 import LookbookRetratos from "./pages/LookbookRetratos";
 import LookbookRestauracao from "./pages/LookbookRestauracao";
-import LookbookFestas from "./pages/LookbookFestas"; 
+import LookbookFestas from "./pages/LookbookFestas";
 import LookbookDesporto from "./pages/LookbookDesporto";
 
+import Login from "./private/pages/Login";
+import Dashboard from "./private/pages/Dashboard";
+import BusinessLinePage from "./private/pages/BusinessLinePage";
+import ClientsPage from "./private/pages/ClientsPage";
+import TasksPage from "./private/pages/TasksPage";
+import FinancePage from "./private/pages/FinancePage";
+import PlaybookPage from "./private/pages/PlaybookPage";
+import ProtectedRoute from "./private/ProtectedRoute";
 
-
+function PrivatePage({ children }) {
+  return <ProtectedRoute>{children}</ProtectedRoute>;
+}
 
 export default function App() {
   return (
@@ -40,16 +50,17 @@ export default function App() {
       <Route path="/portfolio" element={<PortfolioPage />} />
       <Route path="/about" element={<AboutPage />} />
       <Route path="/servicos" element={<ServicesPage />} />
+
       <Route path="/lookbook/concertos" element={<LookbookConcertos />} />
       <Route path="/lookbook/retratos" element={<LookbookRetratos />} />
       <Route path="/lookbook/restauracao" element={<LookbookRestauracao />} />
       <Route path="/lookbook/festas" element={<LookbookFestas />} />
       <Route path="/lookbook/desporto" element={<LookbookDesporto />} />
-
       <Route
-  path="/lookbook/casamentos"
-  element={<LookbookCasamentosBatizados />}
-/>
+        path="/lookbook/casamentos"
+        element={<LookbookCasamentosBatizados />}
+      />
+
       <Route
         path="/servicos/fotografia/eventos"
         element={<ServicosFotosEventos />}
@@ -71,20 +82,85 @@ export default function App() {
         element={<ServicosFotosPublicidade />}
       />
       <Route path="/servicos/fotografia/drone" element={<ServicosFotosDrone />} />
-        <Route path="/servicos/fotografia/imobiliarias" element={<ServicosFotosImobiliarias />} />
-        <Route path="/servicos/video/eventos" element={<ServicosVideoEventos />} />
-        <Route path="/servicos/video/imobiliario" element={<ServicosVideoImobiliario />} />
-        <Route path="/servicos/video/dj-sets" element={<ServicosVideoDJSets />} />
-        <Route path="/servicos/video/desporto" element={<ServicosVideoDesporto />} />
-        <Route path="/servicos/video/youtube" element={<ServicosVideoYouTube />} />
-          <Route path="/servicos/marketing/redes-sociais" element={<MarketingRedesSociais />} />
-          <Route path="/servicos/marketing/web" element={<MarketingDesenvolvimentoWeb />} />
-          <Route path="/servicos/marketing/leads" element={<MarketingLeads />} />
-            <Route path="/estudio" element={<StudioPage />} />
-              <Route path="/aluguer" element={<AluguerPage />} />
-                    <Route path="/blog" element={<BlogPage />} />
+      <Route
+        path="/servicos/fotografia/imobiliarias"
+        element={<ServicosFotosImobiliarias />}
+      />
+
+      <Route path="/servicos/video/eventos" element={<ServicosVideoEventos />} />
+      <Route
+        path="/servicos/video/imobiliario"
+        element={<ServicosVideoImobiliario />}
+      />
+      <Route path="/servicos/video/dj-sets" element={<ServicosVideoDJSets />} />
+      <Route path="/servicos/video/desporto" element={<ServicosVideoDesporto />} />
+      <Route path="/servicos/video/youtube" element={<ServicosVideoYouTube />} />
+
+      <Route
+        path="/servicos/marketing/redes-sociais"
+        element={<MarketingRedesSociais />}
+      />
+      <Route
+        path="/servicos/marketing/web"
+        element={<MarketingDesenvolvimentoWeb />}
+      />
+      <Route path="/servicos/marketing/leads" element={<MarketingLeads />} />
+
+      <Route path="/estudio" element={<StudioPage />} />
+      <Route path="/aluguer" element={<AluguerPage />} />
+      <Route path="/blog" element={<BlogPage />} />
       <Route path="/blog/:slug" element={<BlogPostPage />} />
-         <Route path="/contactos" element={<ContactPage />} /> 
+      <Route path="/contactos" element={<ContactPage />} />
+
+      <Route path="/tomasmondim/login" element={<Login />} />
+      <Route
+        path="/tomasmondim"
+        element={
+          <PrivatePage>
+            <Dashboard />
+          </PrivatePage>
+        }
+      />
+      <Route
+        path="/tomasmondim/ramo/:lineId"
+        element={
+          <PrivatePage>
+            <BusinessLinePage />
+          </PrivatePage>
+        }
+      />
+      <Route
+        path="/tomasmondim/clientes"
+        element={
+          <PrivatePage>
+            <ClientsPage />
+          </PrivatePage>
+        }
+      />
+      <Route
+        path="/tomasmondim/tarefas"
+        element={
+          <PrivatePage>
+            <TasksPage />
+          </PrivatePage>
+        }
+      />
+      <Route
+        path="/tomasmondim/financeiro"
+        element={
+          <PrivatePage>
+            <FinancePage />
+          </PrivatePage>
+        }
+      />
+      <Route
+        path="/tomasmondim/playbook"
+        element={
+          <PrivatePage>
+            <PlaybookPage />
+          </PrivatePage>
+        }
+      />
     </Routes>
   );
 }
