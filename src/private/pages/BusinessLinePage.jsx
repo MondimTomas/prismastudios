@@ -102,7 +102,7 @@ export default function BusinessLinePage() {
           loading={loadingData}
         />
       )}
-      {activeSection === "leads" && <Leads line={line} />}
+      {activeSection === "leads" && <Leads line={line} jobs={jobs} />}
       {activeSection === "work" && (
         <Work line={line} jobs={jobs} loading={loadingData} />
       )}
@@ -145,7 +145,7 @@ function Overview({ line, jobs, footballTeams, loading }) {
 
       <section className="mt-10">
         <SectionTitle eyebrow="Pipeline" title="Processo comercial" />
-        <Pipeline line={line} />
+        <Pipeline line={line} jobs={jobs} />
       </section>
 
       <section className="grid xl:grid-cols-3 gap-5 mt-10">
@@ -199,11 +199,11 @@ function Overview({ line, jobs, footballTeams, loading }) {
   );
 }
 
-function Leads({ line }) {
+function Leads({ line, jobs }) {
   return (
     <>
       <SectionTitle eyebrow="Leads" title="Pipeline comercial" />
-      <Pipeline line={line} />
+      <Pipeline line={line} jobs={jobs} />
 
       <section className="grid xl:grid-cols-3 gap-5 mt-8">
         <div className="xl:col-span-2 rounded-2xl border border-white/[0.08] bg-white/[0.025]">
@@ -417,7 +417,18 @@ function Sops({ line }) {
   );
 }
 
-function Pipeline({ line }) {
+function Pipeline({ line, jobs = [] }) {
+  function stageCount(stage) {
+    if (line.id !== "futebol") return 0;
+    if (stage === "Agendada") {
+      return jobs.filter((job) => job.status === "scheduled").length;
+    }
+    if (stage === "Realizada") {
+      return jobs.filter((job) => job.status === "completed").length;
+    }
+    return 0;
+  }
+
   return (
     <div className="grid md:grid-cols-5 gap-3">
       {line.pipeline.map((stage, index) => (
@@ -430,7 +441,7 @@ function Pipeline({ line }) {
               {String(index + 1).padStart(2, "0")}
             </span>
             <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-white/35">
-              0
+              {stageCount(stage)}
             </span>
           </div>
           <p className="font-medium mt-6">{stage}</p>
