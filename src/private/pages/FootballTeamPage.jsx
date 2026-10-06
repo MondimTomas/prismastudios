@@ -32,6 +32,7 @@ export default function FootballTeamPage() {
   const [previewingZerozero, setPreviewingZerozero] = useState(false);
   const [importingZerozero, setImportingZerozero] = useState(false);
   const [importMessage, setImportMessage] = useState("");
+  const [zerozeroError, setZerozeroError] = useState("");
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -264,6 +265,7 @@ export default function FootballTeamPage() {
 
     setPreviewingZerozero(true);
     setError("");
+    setZerozeroError("");
     setImportMessage("");
     setZerozeroPreview(null);
     setSelectedImportKeys([]);
@@ -289,12 +291,12 @@ export default function FootballTeamPage() {
         }
       }
 
-      setError(message);
+      setZerozeroError(message);
       return;
     }
 
     if (data?.error) {
-      setError(data.error);
+      setZerozeroError(data.error);
       return;
     }
 
@@ -557,6 +559,7 @@ export default function FootballTeamPage() {
                       setZerozeroPreview(null);
                       setSelectedImportKeys([]);
                       setImportMessage("");
+                      setZerozeroError("");
                     }}
                     placeholder="https://www.zerozero.pt/equipa/..."
                     className={inputClass}
@@ -572,6 +575,12 @@ export default function FootballTeamPage() {
                   {previewingZerozero ? "A consultar..." : "Pré-visualizar plantel"}
                 </button>
               </div>
+
+              {zerozeroError && (
+                <div className="mt-4 rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
+                  {zerozeroError}
+                </div>
+              )}
 
               {zerozeroPreview && (
                 <div className="mt-5 rounded-2xl border border-white/[0.07] bg-black/10 overflow-hidden">
