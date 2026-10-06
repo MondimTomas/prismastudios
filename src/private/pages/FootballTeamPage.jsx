@@ -309,6 +309,61 @@ export default function FootballTeamPage() {
     await loadData();
   }
 
+  async function applyZerozeroPreview(data, url, { fromCache = false } = {}) {
+    const rawPlayers = data?.players || [];
+
+    if (rawPlayers.length === 0) {
+      throw new Error(
+        "A extensão abriu a página, mas não encontrou jogadores no plantel."
+      );
+    }
+
+    const previewPlayers = rawPlayers.map((player, index) => ({
+      ...player,
+      importKey: buildImportKey(player, index),
+    }));
+
+    const preview = {
+      ...data,
+      sourceUrl: url,
+      players: previewPlayers,
+      fromCache,
+    };
+
+    setZerozeroPreview(preview);
+    setSelectedImportKeys(previewPlayers.map((player) => player.importKey));
+
+    if (fromCache) return;
+
+    const cachePayload = {
+      ...data,
+      sourceUrl: url,
+    };
+
+    const cachedAt = new Date().toISOString();
+
+    const { error: cacheError } = await supabase
+      .from("football_teams")
+      .update({
+        zerozero_cached_preview: cachePayload,
+        zerozero_preview_cached_at: cachedAt,
+        updated_at: cachedAt,
+      })
+      .eq("id", teamId);
+
+    if (!cacheError) {
+      setTeam((current) =>
+        current
+          ? {
+              ...current,
+              zerozero_cached_preview: cachePayload,
+              zerozero_preview_cached_at: cachedAt,
+            }
+          : current
+      );
+    }
+  }
+
   async function previewZerozero({ force = false } = {}) {
     const url = zerozeroUrl.trim();
 
@@ -317,7 +372,6 @@ export default function FootballTeamPage() {
       return;
     }
 
-    setPreviewingZerozero(true);
     setError("");
     setZerozeroError("");
     setImportMessage("");
@@ -333,92 +387,44 @@ export default function FootballTeamPage() {
     const cacheFresh = cacheAgeMs < 24 * 60 * 60 * 1000;
 
     if (!force && cached && cacheUrl === url && cacheFresh) {
-      const previewPlayers = (cached.players || []).map((player, index) => ({
-        ...player,
-        importKey: buildImportKey(player, index),
-      }));
-
-      setZerozeroPreview({
-        ...cached,
-        players: previewPlayers,
-        fromCache: true,
-      });
-      setSelectedImportKeys(previewPlayers.map((player) => player.importKey));
-      setPreviewingZerozero(false);
+      await applyZerozeroPreview(cached, url, { fromCache: true });
       return;
     }
 
-    const { data, error: invokeError } = await supabase.functions.invoke(
-      "zerozero-squad-preview",
+    if (!zerozeroExtensionAvailable) {
+      setZerozeroError(
+        "A extensão Prisma ZeroZero não foi detetada neste browser. Instala-a uma vez e recarrega esta página."
+      );
+      return;
+    }
+
+    const requestId =
+      typeof crypto?.randomUUID === "function"
+        ? crypto.randomUUID()
+        : Date.now() + "-" + Math.random().toString(36).slice(2);
+
+    zerozeroRequestRef.current = { requestId, url };
+    setPreviewingZerozero(true);
+
+    window.postMessage(
       {
-        body: { url },
-      }
+        source: "prisma-workspace",
+        type: "PRISMA_ZEROZERO_IMPORT_REQUEST",
+        requestId,
+        url,
+      },
+      "*"
     );
 
-    setPreviewingZerozero(false);
+    zerozeroTimeoutRef.current = window.setTimeout(() => {
+      if (zerozeroRequestRef.current?.requestId !== requestId) return;
 
-    if (invokeError) {
-      let message =
-        invokeError.message || "Não foi possível consultar o ZeroZero.";
-
-      if (invokeError.context) {
-        try {
-          const body = await invokeError.context.json();
-          if (body?.error) message = body.error;
-        } catch {
-          // Keep the original function error.
-        }
-      }
-
-      setZerozeroError(message);
-      return;
-    }
-
-    if (data?.error) {
-      setZerozeroError(data.error);
-      return;
-    }
-
-    const previewPlayers = (data?.players || []).map((player, index) => ({
-      ...player,
-      importKey: buildImportKey(player, index),
-    }));
-
-    const preview = {
-      ...data,
-      sourceUrl: url,
-      players: previewPlayers,
-      fromCache: false,
-    };
-
-    setZerozeroPreview(preview);
-    setSelectedImportKeys(previewPlayers.map((player) => player.importKey));
-
-    const cachePayload = {
-      ...data,
-      sourceUrl: url,
-    };
-
-    const { error: cacheError } = await supabase
-      .from("football_teams")
-      .update({
-        zerozero_cached_preview: cachePayload,
-        zerozero_preview_cached_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", teamId);
-
-    if (!cacheError) {
-      setTeam((current) =>
-        current
-          ? {
-              ...current,
-              zerozero_cached_preview: cachePayload,
-              zerozero_preview_cached_at: new Date().toISOString(),
-            }
-          : current
+      zerozeroRequestRef.current = null;
+      setPreviewingZerozero(false);
+      setZerozeroError(
+        "A extensão demorou demasiado a ler o ZeroZero. Confirma se a página abriu corretamente e tenta novamente."
       );
-    }
+    }, 18000);
   }
 
   function toggleImportPlayer(importKey) {
