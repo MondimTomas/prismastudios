@@ -135,16 +135,25 @@ async function main() {
   );
 
   const conversions = [];
+  const batchSize = 4;
 
-  for (const filePath of candidates) {
-    try {
-      const result = await convertImage(filePath);
-      if (result) conversions.push(result);
-    } catch (error) {
-      console.warn(
-        `[asset-opt] skipped ${toPosixRelative(filePath)}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
+  for (let offset = 0; offset < candidates.length; offset += batchSize) {
+    const batch = candidates.slice(offset, offset + batchSize);
+
+    const results = await Promise.all(
+      batch.map(async (filePath) => {
+        try {
+          return await convertImage(filePath);
+        } catch (error) {
+          console.warn(
+            `[asset-opt] skipped ${toPosixRelative(filePath)}: ${error instanceof Error ? error.message : String(error)}`,
+          );
+          return null;
+        }
+      }),
+    );
+
+    conversions.push(...results.filter(Boolean));
   }
 
   const refreshedFiles = await walk(DIST_DIR);
