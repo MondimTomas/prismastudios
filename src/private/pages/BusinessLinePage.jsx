@@ -1,11 +1,62 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import WorkspaceLayout from "../components/WorkspaceLayout";
 import BusinessLineTabs from "../components/BusinessLineTabs";
 import { getBusinessLine } from "../workspaceData";
+import { supabase } from "../../lib/supabase";
 
 export default function BusinessLinePage() {
   const { lineId, section } = useParams();
   const line = getBusinessLine(lineId);
+  const [jobs, setJobs] = useState([]);
+  const [footballTeams, setFootballTeams] = useState([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [dataError, setDataError] = useState("");
+
+  const loadLineData = useCallback(async () => {
+    if (!line) return;
+
+    setLoadingData(true);
+    setDataError("");
+
+    const jobsQuery = supabase
+      .from("workspace_jobs")
+      .select("*, football_teams(id,name,season), workspace_job_players(player_id)")
+      .eq("business_line", line.id)
+      .order("job_date", { ascending: false });
+
+    const jobsResult = await jobsQuery;
+
+    if (jobsResult.error) {
+      setDataError(jobsResult.error.message);
+      setJobs([]);
+    } else {
+      setJobs(jobsResult.data || []);
+    }
+
+    if (line.id === "futebol") {
+      const teamsResult = await supabase
+        .from("football_teams")
+        .select("id,name,season")
+        .order("season", { ascending: false })
+        .order("name", { ascending: true });
+
+      if (teamsResult.error) {
+        setDataError((current) => current || teamsResult.error.message);
+        setFootballTeams([]);
+      } else {
+        setFootballTeams(teamsResult.data || []);
+      }
+    } else {
+      setFootballTeams([]);
+    }
+
+    setLoadingData(false);
+  }, [line]);
+
+  useEffect(() => {
+    loadLineData();
+  }, [loadLineData]);
 
   if (!line) {
     return <Navigate to="/tomasmondim" replace />;
@@ -37,9 +88,24 @@ export default function BusinessLinePage() {
 
       <BusinessLineTabs line={line} activeSection={activeSection} />
 
-      {activeSection === "overview" && <Overview line={line} />}
+      {dataError && (
+        <div className="mb-6 rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
+          {dataError}
+        </div>
+      )}
+
+      {activeSection === "overview" && (
+        <Overview
+          line={line}
+          jobs={jobs}
+          footballTeams={footballTeams}
+          loading={loadingData}
+        />
+      )}
       {activeSection === "leads" && <Leads line={line} />}
-      {activeSection === "work" && <Work line={line} />}
+      {activeSection === "work" && (
+        <Work line={line} jobs={jobs} loading={loadingData} />
+      )}
       {activeSection === "recurring" && <RecurringClients line={line} />}
       {activeSection === "active" && <ActiveClients line={line} />}
       {activeSection === "lost" && <LostClients />}
@@ -49,12 +115,31 @@ export default function BusinessLinePage() {
   );
 }
 
-function Overview({ line }) {
+function Overview({ line, jobs, footballTeams, loading }) {
+  const stats = useMemo(
+    () => buildLineStats(line, jobs, footballTeams),
+    [line, jobs, footballTeams]
+  );
+
+  const metrics =
+    line.id === "futebol"
+      ? [
+          { label: "Leads abertas", value: "0" },
+          { label: "Sessões este mês", value: String(stats.thisMonthJobs.length) },
+          { label: "Receita este mês", value: money(stats.thisMonthRevenue) },
+          { label: "Equipas ativas", value: String(stats.activeTeams) },
+        ]
+      : line.metrics;
+
   return (
     <>
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {line.metrics.map((metric) => (
-          <Metric key={metric.label} {...metric} />
+        {metrics.map((metric) => (
+          <Metric
+            key={metric.label}
+            {...metric}
+            value={loading && line.id === "futebol" ? "…" : metric.value}
+          />
         ))}
       </div>
 
@@ -66,10 +151,38 @@ function Overview({ line }) {
       <section className="grid xl:grid-cols-3 gap-5 mt-10">
         <div className="xl:col-span-2 rounded-2xl border border-white/[0.08] bg-white/[0.025]">
           <PanelHeader eyebrow="Atividade" title="Histórico recente" />
-          <EmptyState>
-            Quando começares a trabalhar neste ramo, contactos, propostas, mudanças de estado,
-            trabalhos e pagamentos ficam registados aqui por ordem cronológica.
-          </EmptyState>
+          {loading ? (
+            <div className="p-5 text-sm text-white/30">A carregar atividade...</div>
+          ) : jobs.length === 0 ? (
+            <EmptyState>
+              Quando começares a registar trabalhos neste ramo, eles aparecem aqui automaticamente.
+            </EmptyState>
+          ) : (
+            <div>
+              {jobs.slice(0, 6).map((job) => (
+                <div
+                  key={job.id}
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-white/[0.05] last:border-b-0"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {job.football_teams?.name || job.client_name}
+                    </p>
+                    <p className="text-xs text-white/30 mt-1">
+                      {formatDate(job.job_date)} · {job.title}
+                      {job.football_teams?.season ? " · " + job.football_teams.season : ""}
+                    </p>
+                  </div>
+                  <div className="sm:text-right shrink-0">
+                    <p className="text-sm font-medium">{money(job.revenue)}</p>
+                    <p className="text-xs text-white/25 mt-1">
+                      {paymentLabel(job.payment_status)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025]">
@@ -121,20 +234,76 @@ function Leads({ line }) {
   );
 }
 
-function Work({ line }) {
+function Work({ line, jobs, loading }) {
+  const stats = useMemo(() => buildLineStats(line, jobs, []), [line, jobs]);
+
   return (
     <section className="rounded-2xl border border-white/[0.08] bg-white/[0.025]">
       <PanelHeader eyebrow="Execução" title={line.workLabel} />
       <div className="p-5">
         <div className="grid sm:grid-cols-3 gap-3 mb-5">
-          <MiniMetric label="Ativos" value="0" />
-          <MiniMetric label="Este mês" value="0" />
-          <MiniMetric label="Receita" value="0 €" />
+          <MiniMetric
+            label="Ativos"
+            value={loading ? "…" : String(stats.activeJobs.length)}
+          />
+          <MiniMetric
+            label="Este mês"
+            value={loading ? "…" : String(stats.thisMonthJobs.length)}
+          />
+          <MiniMetric
+            label="Receita"
+            value={loading ? "…" : money(stats.totalRevenue)}
+          />
         </div>
-        <EmptyState compact>
-          Cada trabalho nasce de uma lead ganha ou pode ser criado diretamente. Terá datas,
-          tarefas, custos, estado, cliente e histórico.
-        </EmptyState>
+
+        {loading ? (
+          <div className="rounded-xl border border-dashed border-white/10 px-5 py-10 text-center text-sm text-white/30">
+            A carregar...
+          </div>
+        ) : jobs.length === 0 ? (
+          <EmptyState compact>
+            Os trabalhos que adicionares em “Trabalhos” aparecem aqui automaticamente.
+          </EmptyState>
+        ) : (
+          <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+            {jobs.map((job) => (
+              <div
+                key={job.id}
+                className="grid sm:grid-cols-[110px_1fr_auto] gap-3 items-center px-4 py-3 border-b border-white/[0.05] last:border-b-0"
+              >
+                <span className="text-xs text-white/35">
+                  {formatDate(job.job_date)}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm text-white/70 truncate">
+                    {job.football_teams?.name || job.client_name}
+                  </p>
+                  <p className="text-xs text-white/25 mt-1 truncate">
+                    {job.title}
+                    {job.football_teams?.season ? " · " + job.football_teams.season : ""}
+                    {job.workspace_job_players?.length
+                      ? " · " +
+                        job.workspace_job_players.length +
+                        (job.workspace_job_players.length === 1
+                          ? " jogador"
+                          : " jogadores")
+                      : ""}
+                  </p>
+                </div>
+                <span className="text-sm font-medium">{money(job.revenue)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-4 text-right">
+          <Link
+            to={"/tomasmondim/trabalhos?ramo=" + line.id}
+            className="text-sm text-[#B89A84] hover:text-white transition"
+          >
+            Gerir todos os trabalhos →
+          </Link>
+        </div>
       </div>
     </section>
   );
@@ -304,6 +473,88 @@ function PanelHeader({ eyebrow, title }) {
       <p className="text-[10px] uppercase tracking-[0.2em] text-white/30">{eyebrow}</p>
       <h2 className="font-semibold mt-1">{title}</h2>
     </div>
+  );
+}
+
+function buildLineStats(line, jobs, footballTeams) {
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const thisMonthJobs = jobs.filter((job) => {
+    if (!job.job_date) return false;
+    const date = new Date(job.job_date + "T12:00:00");
+    return (
+      date.getFullYear() === currentYear &&
+      date.getMonth() === currentMonth
+    );
+  });
+
+  const thisMonthRevenue = thisMonthJobs.reduce(
+    (total, job) => total + Number(job.revenue || 0),
+    0
+  );
+
+  const totalRevenue = jobs.reduce(
+    (total, job) => total + Number(job.revenue || 0),
+    0
+  );
+
+  const activeJobs = jobs.filter((job) =>
+    ["scheduled", "in_progress"].includes(job.status)
+  );
+
+  const activeTeams =
+    line.id === "futebol"
+      ? footballTeams.filter(
+          (team) => team.season === footballSeasonForDate(now)
+        ).length
+      : 0;
+
+  return {
+    thisMonthJobs,
+    thisMonthRevenue,
+    totalRevenue,
+    activeJobs,
+    activeTeams,
+  };
+}
+
+function footballSeasonForDate(date) {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+
+  if (month >= 7) {
+    return year + "/" + String(year + 1).slice(-2);
+  }
+
+  return year - 1 + "/" + String(year).slice(-2);
+}
+
+function money(value) {
+  return new Intl.NumberFormat("pt-PT", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+}
+
+function formatDate(value) {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("pt-PT", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value + "T12:00:00"));
+}
+
+function paymentLabel(value) {
+  return (
+    {
+      paid: "Pago",
+      partial: "Parcial",
+      unpaid: "Por pagar",
+    }[value] || value
   );
 }
 
