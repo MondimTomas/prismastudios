@@ -47,6 +47,12 @@ Deno.serve(async (req: Request) => {
     requireAuthenticatedUser(req);
 
     const payload = await req.json().catch(() => ({}));
+
+    if (payload?.action === "usage") {
+      const usage = await fetchBrowserlessUsage();
+      return json(usage, 200);
+    }
+
     const rawUrl = typeof payload?.url === "string" ? payload.url.trim() : "";
 
     if (!rawUrl) {
@@ -280,59 +286,65 @@ async function fetchWithBrowserless(
   token: string,
 ) {
   const base = "https://production-lon.browserless.io";
+  const params = new URLSearchParams({
+    token,
+    stealth: "true",
+    proxy: "residential",
+    proxyCountry: "pt",
+    proxySticky: "true",
+    proxyLocaleMatch: "true",
+    blockAds: "true",
+    blockAdsInclude:
+      "ublock-filters,easylist,easyprivacy,pgl,ublock-badware,urlhaus-full",
+    timeout: "22000",
+  });
+
+  const contentUrl = base + "/content?" + params.toString();
 
   console.log(
     JSON.stringify({
       event: "zerozero_stage",
-      stage: "browserless_unblock_start",
+      stage: "browserless_content_start",
       target: targetUrl.toString(),
+      resource_mode: "lean",
     }),
   );
 
-  const unblockUrl =
-    base +
-    "/unblock?token=" +
-    encodeURIComponent(token) +
-    "&proxy=residential&proxyCountry=pt&proxySticky=true&timeout=25000";
-
   try {
     const startedAt = Date.now();
-    const response = await fetch(unblockUrl, {
+    const response = await fetch(contentUrl, {
       method: "POST",
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(26000),
       headers: {
         "Content-Type": "application/json",
-        Accept: "application/json",
+        Accept: "text/html",
       },
       body: JSON.stringify({
         url: targetUrl.toString(),
-        content: true,
-        cookies: false,
-        screenshot: false,
-        browserWSEndpoint: false,
+        bestAttempt: true,
+        gotoOptions: {
+          waitUntil: "domcontentloaded",
+          timeout: 16000,
+        },
+        rejectResourceTypes: ["image", "media", "font"],
+        rejectRequestPattern: [
+          "/google-analytics\\.com/",
+          "/googletagmanager\\.com/",
+          "/doubleclick\\.net/",
+          "/facebook\\.net/",
+          "/hotjar\\.com/",
+          "/clarity\\.ms/",
+        ],
       }),
     });
 
-    const raw = await response.text();
-    let payload: any = null;
-
-    try {
-      payload = JSON.parse(raw);
-    } catch {
-      payload = null;
-    }
-
-    const html =
-      typeof payload?.content === "string"
-        ? payload.content
-        : "";
-
+    const html = await response.text();
     const useful = looksUsefulZeroZeroBody(html);
 
     console.log(
       JSON.stringify({
         event: "zerozero_stage",
-        stage: "browserless_unblock_done",
+        stage: "browserless_content_done",
         status: response.status,
         duration_ms: Date.now() - startedAt,
         body_length: html.length,
@@ -340,76 +352,15 @@ async function fetchWithBrowserless(
         title: extractDebugTitle(html),
         has_plantel: /plantel/i.test(html),
         player_links: (html.match(/\/jogador\//gi) || []).length,
-        error:
-          typeof payload?.message === "string"
-            ? payload.message
-            : typeof payload?.error === "string"
-              ? payload.error
-              : "",
-      }),
-    );
-
-    if (response.ok && html && useful) {
-      return {
-        ok: true,
-        status: response.status,
-        body: html,
-        mode: "unblock-residential-london",
-        error: "",
-      };
-    }
-
-    console.log(
-      JSON.stringify({
-        event: "zerozero_stage",
-        stage: "browserless_content_start",
-      }),
-    );
-
-    const contentUrl =
-      base +
-      "/content?token=" +
-      encodeURIComponent(token) +
-      "&stealth=true&proxy=residential&proxyCountry=pt&proxySticky=true&timeout=20000";
-
-    const contentStartedAt = Date.now();
-    const contentResponse = await fetch(contentUrl, {
-      method: "POST",
-      signal: AbortSignal.timeout(25000),
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "text/html",
-      },
-      body: JSON.stringify({
-        url: targetUrl.toString(),
-      }),
-    });
-
-    const contentHtml = await contentResponse.text();
-    const contentUseful = looksUsefulZeroZeroBody(contentHtml);
-
-    console.log(
-      JSON.stringify({
-        event: "zerozero_stage",
-        stage: "browserless_content_done",
-        status: contentResponse.status,
-        duration_ms: Date.now() - contentStartedAt,
-        body_length: contentHtml.length,
-        useful: contentUseful,
-        title: extractDebugTitle(contentHtml),
-        has_plantel: /plantel/i.test(contentHtml),
-        player_links: (contentHtml.match(/\/jogador\//gi) || []).length,
       }),
     );
 
     return {
-      ok: contentResponse.ok && Boolean(contentHtml),
-      status: contentResponse.status,
-      body: contentHtml,
-      mode: "content-residential-london",
-      error: contentResponse.ok
-        ? ""
-        : contentHtml.slice(0, 250),
+      ok: response.ok && Boolean(html),
+      status: response.status,
+      body: html,
+      mode: "content-residential-lean",
+      error: response.ok ? "" : html.slice(0, 250),
     };
   } catch (error) {
     const message =
@@ -427,19 +378,138 @@ async function fetchWithBrowserless(
       ok: false,
       status: 0,
       body: "",
-      mode: "browserless-london",
+      mode: "content-residential-lean",
       error: message,
     };
   }
 }
 
-function extractDebugTitle(html: string) {
-  const match = html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i);
-  if (!match) return null;
+async function fetchBrowserlessUsage() {
+  const token = Deno.env.get("BROWSERLESS_TOKEN")?.trim();
 
-  return normalizeWhitespace(
-    decodeEntities(match[1].replace(/<[^>]+>/g, " ")),
-  ).slice(0, 160);
+  if (!token) {
+    return {
+      configured: false,
+      used: null,
+      limit: null,
+      remaining: null,
+      resetAt: null,
+    };
+  }
+
+  const response = await fetch(
+    "https://api.browserless.io/v1/account/usage?token=" +
+      encodeURIComponent(token),
+    {
+      signal: AbortSignal.timeout(8000),
+      headers: { Accept: "application/json" },
+    },
+  );
+
+  if (!response.ok) {
+    return {
+      configured: true,
+      used: null,
+      limit: null,
+      remaining: null,
+      resetAt: null,
+      error: "Browserless usage API: HTTP " + response.status,
+    };
+  }
+
+  const payload = await response.json();
+  const normalized = normalizeUsagePayload(payload);
+
+  return {
+    configured: true,
+    ...normalized,
+  };
+}
+
+function normalizeUsagePayload(payload: unknown) {
+  const entries: Array<{ path: string; value: unknown }> = [];
+
+  const walk = (value: unknown, path = "") => {
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => walk(item, path + "." + index));
+      return;
+    }
+
+    if (value && typeof value === "object") {
+      Object.entries(value as Record<string, unknown>).forEach(([key, item]) =>
+        walk(item, path ? path + "." + key : key),
+      );
+      return;
+    }
+
+    entries.push({ path: path.toLowerCase(), value });
+  };
+
+  walk(payload);
+
+  const numeric = (
+    preferred: RegExp[],
+    excluded: RegExp[] = [],
+  ): number | null => {
+    for (const pattern of preferred) {
+      const match = entries.find(
+        (entry) =>
+          pattern.test(entry.path) &&
+          !excluded.some((rule) => rule.test(entry.path)) &&
+          typeof entry.value === "number" &&
+          Number.isFinite(entry.value),
+      );
+      if (match) return Number(match.value);
+    }
+    return null;
+  };
+
+  const textValue = (patterns: RegExp[]): string | null => {
+    for (const pattern of patterns) {
+      const match = entries.find(
+        (entry) =>
+          pattern.test(entry.path) &&
+          (typeof entry.value === "string" ||
+            typeof entry.value === "number"),
+      );
+      if (match) return String(match.value);
+    }
+    return null;
+  };
+
+  const used = numeric([
+    /units?.*(used|consumed)/,
+    /(used|consumed).*units?/,
+    /usage.*units?/,
+  ], [/proxy/, /captcha/, /time/]);
+
+  const limit = numeric([
+    /units?.*(limit|allowance|included|max|total)/,
+    /(limit|allowance|included|max|total).*units?/,
+  ], [/used/, /consumed/, /proxy/, /captcha/, /time/]);
+
+  let remaining = numeric([
+    /units?.*(remaining|balance|left)/,
+    /(remaining|balance|left).*units?/,
+  ], [/proxy/, /captcha/, /time/]);
+
+  if (remaining === null && used !== null && limit !== null) {
+    remaining = Math.max(0, limit - used);
+  }
+
+  const resetAt = textValue([
+    /reset/,
+    /cycle.*end/,
+    /period.*end/,
+    /renew/,
+  ]);
+
+  return {
+    used,
+    limit,
+    remaining,
+    resetAt,
+  };
 }
 
 function buildCandidateUrls(initialUrl: URL) {
