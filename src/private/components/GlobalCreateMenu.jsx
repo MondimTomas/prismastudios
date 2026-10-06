@@ -22,7 +22,7 @@ export default function GlobalCreateMenu() {
   const items = [
     { label: "Lead", hint: line ? `em ${line.name}` : "escolher ramo" },
     { label: "Cliente", hint: "global" },
-    { label: line?.workLabel?.slice(0, -1) || "Trabalho", hint: line ? `em ${line.name}` : "escolher ramo" },
+    { label: "Trabalho", hint: line ? `${line.workLabel} · ${line.name}` : "escolher ramo" },
     { label: "Tarefa", hint: "follow-up ou execução" },
     { label: "Receita / Despesa", hint: "financeiro" },
   ];
