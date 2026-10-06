@@ -63,6 +63,9 @@ Deno.serve(async (req: Request) => {
         fetch_source: fetched.source,
         direct_status: fetched.directStatus,
         players: parsed.players.length,
+        body_length: fetched.body.length,
+        has_plantel_word: /plantel/i.test(fetched.body),
+        player_link_mentions: (fetched.body.match(/\/jogador\//gi) || []).length,
       }),
     );
 
@@ -257,13 +260,19 @@ function parseSquad(html: string, sourceUrl: string) {
   );
 
   if (plantelIndex < 0) {
+    const linkedPlayers = extractLinkedPlayersFromContent(
+      html,
+      sourceUrl,
+      lines,
+    );
+
     return {
       source: "zerozero",
       sourceUrl,
       teamName,
-      season: null,
-      players: [],
-      parserVersion: 1,
+      season: extractSeason(lines),
+      players: linkedPlayers,
+      parserVersion: 2,
     };
   }
 
@@ -316,14 +325,199 @@ function parseSquad(html: string, sourceUrl: string) {
     });
   }
 
+  const fallbackPlayers =
+    players.length === 0
+      ? extractLinkedPlayersFromContent(html, sourceUrl, lines)
+      : [];
+
   return {
     source: "zerozero",
     sourceUrl,
     teamName,
     season,
-    players,
-    parserVersion: 1,
+    players: players.length > 0 ? players : fallbackPlayers,
+    parserVersion: 2,
   };
+}
+
+function extractLinkedPlayersFromContent(
+  content: string,
+  sourceUrl: string,
+  lines: string[],
+) {
+  const found = new Map<
+    string,
+    {
+      name: string;
+      shirt_number: number | null;
+      position: string | null;
+      source_url: string;
+    }
+  >();
+
+  const add = (rawName: string, rawUrl: string) => {
+    const name = normalizeCandidatePlayerName(rawName);
+    if (!isLikelyPlayerName(name)) return;
+
+    let absolute: URL;
+
+    try {
+      absolute = new URL(rawUrl, sourceUrl);
+    } catch {
+      return;
+    }
+
+    if (
+      absolute.hostname !== "zerozero.pt" &&
+      absolute.hostname !== "www.zerozero.pt"
+    ) {
+      return;
+    }
+
+    if (!absolute.pathname.startsWith("/jogador/")) return;
+
+    const canonicalUrl =
+      absolute.origin + absolute.pathname.replace(/\/+$/, "");
+    const metadata = inferPlayerMetadata(lines, name);
+
+    const existing = found.get(canonicalUrl);
+
+    if (!existing) {
+      found.set(canonicalUrl, {
+        name,
+        shirt_number: metadata.shirt_number,
+        position: metadata.position,
+        source_url: absolute.toString(),
+      });
+      return;
+    }
+
+    if (existing.shirt_number === null && metadata.shirt_number !== null) {
+      existing.shirt_number = metadata.shirt_number;
+    }
+
+    if (!existing.position && metadata.position) {
+      existing.position = metadata.position;
+    }
+  };
+
+  const markdownRegex =
+    /\[([^\]]{2,100})\]\((https?:\/\/(?:www\.)?zerozero\.pt\/jogador\/[^)\s]+)\)/gi;
+
+  let markdownMatch: RegExpExecArray | null;
+  while ((markdownMatch = markdownRegex.exec(content)) !== null) {
+    add(markdownMatch[1], markdownMatch[2]);
+  }
+
+  const htmlRegex =
+    /<a\b[^>]*href=["']([^"']*\/jogador\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+
+  let htmlMatch: RegExpExecArray | null;
+  while ((htmlMatch = htmlRegex.exec(content)) !== null) {
+    add(
+      decodeEntities(htmlMatch[2].replace(/<[^>]+>/g, " ")),
+      htmlMatch[1],
+    );
+  }
+
+  return Array.from(found.values());
+}
+
+function inferPlayerMetadata(lines: string[], playerName: string) {
+  const normalizedTarget = normalizeWhitespace(playerName).toLocaleLowerCase("pt-PT");
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = normalizeWhitespace(lines[i]);
+    const normalizedLine = line.toLocaleLowerCase("pt-PT");
+
+    if (!normalizedLine.includes(normalizedTarget)) continue;
+
+    const nearby = lines.slice(Math.max(0, i - 4), Math.min(lines.length, i + 5));
+    const position = inferPositionFromLines(nearby);
+    const shirtNumber = inferShirtNumberFromLines(nearby, i - Math.max(0, i - 4));
+
+    return {
+      shirt_number: shirtNumber,
+      position,
+    };
+  }
+
+  return {
+    shirt_number: null,
+    position: null,
+  };
+}
+
+function inferPositionFromLines(lines: string[]) {
+  for (const line of lines) {
+    const normalized = normalizeWhitespace(line).toLocaleLowerCase("pt-PT");
+
+    for (const [alias, canonical] of Object.entries(POSITION_ALIASES)) {
+      const cleanAlias = alias.trim().toLocaleLowerCase("pt-PT");
+
+      if (
+        normalized === cleanAlias ||
+        normalized.startsWith(cleanAlias + " ") ||
+        normalized.endsWith(" " + cleanAlias) ||
+        normalized.includes(" " + cleanAlias + " ")
+      ) {
+        return canonical;
+      }
+    }
+  }
+
+  return null;
+}
+
+function inferShirtNumberFromLines(lines: string[], playerOffset: number) {
+  const candidates = [
+    playerOffset - 1,
+    playerOffset - 2,
+    playerOffset,
+    playerOffset + 1,
+  ].filter((index) => index >= 0 && index < lines.length);
+
+  for (const index of candidates) {
+    const line = normalizeWhitespace(lines[index]);
+
+    if (/^\d{1,2}$/.test(line)) {
+      const number = Number(line);
+      if (number >= 0 && number <= 99) return number;
+    }
+
+    const tableMatch = line.match(/(?:^|\s|\|)#?(\d{1,2})(?=\s|\||$)/);
+    if (tableMatch) {
+      const number = Number(tableMatch[1]);
+      if (number >= 0 && number <= 99) return number;
+    }
+  }
+
+  return null;
+}
+
+function normalizeCandidatePlayerName(value: string) {
+  return normalizeWhitespace(
+    decodeEntities(
+      String(value || "")
+        .replace(/!\[[^\]]*\]\([^)]+\)/g, " ")
+        .replace(/<[^>]+>/g, " "),
+    ),
+  )
+    .replace(/^\d{1,2}\s+/, "")
+    .replace(/\s+\d{1,2}$/, "")
+    .replace(/\s+-\s+.*$/, "")
+    .trim();
+}
+
+function isLikelyPlayerName(value: string) {
+  if (!value || value.length < 3 || value.length > 80) return false;
+  if (!/[A-Za-zÀ-ÿ]/.test(value)) return false;
+  if (/^(ver perfil|perfil|mais|estatísticas|estatisticas|jogador)$/i.test(value)) {
+    return false;
+  }
+  if (/^\d+$/.test(value)) return false;
+
+  return true;
 }
 
 function contentToLines(content: string) {
