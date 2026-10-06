@@ -55,13 +55,15 @@ Deno.serve(async (req: Request) => {
 
     const url = validateZeroZeroUrl(rawUrl);
     const fetched = await fetchZeroZeroPage(url);
-    const parsed = parseSquad(fetched.body, url.toString());
+    const parsed = parseSquad(fetched.body, fetched.pageUrl || url.toString());
 
     console.log(
       JSON.stringify({
         event: "zerozero_preview",
         fetch_source: fetched.source,
         direct_status: fetched.directStatus,
+        fetch_source: fetched.source,
+        page_url: fetched.pageUrl,
         players: parsed.players.length,
         body_length: fetched.body.length,
         has_plantel_word: /plantel/i.test(fetched.body),
@@ -152,39 +154,139 @@ function validateZeroZeroUrl(raw: string) {
 }
 
 async function fetchZeroZeroPage(initialUrl: URL) {
-  const direct = await fetchDirectZeroZero(initialUrl);
+  const candidates = buildCandidateUrls(initialUrl);
+  const attempts: Array<{
+    source: string;
+    status: number;
+    bodyLength: number;
+    useful: boolean;
+    url: string;
+  }> = [];
 
-  if (direct.ok && direct.body && !looksLikeBotProtection(direct.body)) {
-    return {
-      body: direct.body,
-      source: "zerozero-direct",
-      directStatus: direct.status,
-    };
+  for (const candidate of candidates) {
+    const direct = await fetchCandidate(candidate.url);
+    const usefulDirect = looksUsefulZeroZeroBody(direct.body);
+
+    attempts.push({
+      source: candidate.label + ":direct",
+      status: direct.status,
+      bodyLength: direct.body.length,
+      useful: usefulDirect,
+      url: candidate.url.toString(),
+    });
+
+    if (direct.ok && usefulDirect) {
+      console.log(JSON.stringify({ event: "zerozero_fetch_success", attempts }));
+      return {
+        body: direct.body,
+        source: candidate.label + ":direct",
+        directStatus: direct.status,
+        pageUrl: candidate.url.toString(),
+      };
+    }
   }
 
-  const reader = await fetchWithJinaReader(initialUrl);
+  for (const candidate of candidates) {
+    const reader = await fetchWithJinaReader(candidate.url);
+    const usefulReader = looksUsefulZeroZeroBody(reader.body);
 
-  if (!reader.ok || !reader.body) {
-    throw new Error(
-      "O ZeroZero bloqueou o acesso automático e o método alternativo também não conseguiu ler a página."
-    );
+    attempts.push({
+      source: candidate.label + ":reader",
+      status: reader.status,
+      bodyLength: reader.body.length,
+      useful: usefulReader,
+      url: candidate.url.toString(),
+    });
+
+    if (reader.ok && usefulReader) {
+      console.log(JSON.stringify({ event: "zerozero_fetch_success", attempts }));
+      return {
+        body: reader.body,
+        source: candidate.label + ":reader",
+        directStatus:
+          attempts.find((attempt) => attempt.source === candidate.label + ":direct")
+            ?.status ?? 0,
+        pageUrl: candidate.url.toString(),
+      };
+    }
   }
 
-  return {
-    body: reader.body,
-    source: "jina-reader",
-    directStatus: direct.status,
-  };
+  console.log(
+    JSON.stringify({
+      event: "zerozero_fetch_failed",
+      attempts,
+    }),
+  );
+
+  throw new Error(
+    "O ZeroZero está a bloquear a leitura automática desta equipa. Não foi possível obter o plantel através das rotas alternativas."
+  );
 }
 
-async function fetchDirectZeroZero(initialUrl: URL) {
-  let current = initialUrl;
+function buildCandidateUrls(initialUrl: URL) {
+  const candidates: Array<{ label: string; url: URL }> = [];
+  const seen = new Set<string>();
+
+  const add = (label: string, url: URL) => {
+    const key = url.toString();
+    if (seen.has(key)) return;
+    seen.add(key);
+    candidates.push({ label, url });
+  };
+
+  add("team", new URL(initialUrl.toString()));
+
+  const redirm = new URL(initialUrl.toString());
+  redirm.searchParams.set("redirm", "1");
+  add("team-redirm", redirm);
+
+  const teamId = extractTeamId(initialUrl);
+  const seasonId = initialUrl.searchParams.get("epoca_id");
+
+  if (teamId) {
+    const playersActive = new URL(
+      "https://www.zerozero.pt/jogadores/futebol/activo"
+    );
+    playersActive.searchParams.set("current_team_id", teamId);
+    if (seasonId) playersActive.searchParams.set("epoca_id", seasonId);
+    add("players-active", playersActive);
+
+    const playersAll = new URL("https://www.zerozero.pt/jogadores/futebol/");
+    playersAll.searchParams.set("current_team_id", teamId);
+    if (seasonId) playersAll.searchParams.set("epoca_id", seasonId);
+    add("players", playersAll);
+
+    const teamPlayers = new URL(initialUrl.toString());
+    teamPlayers.pathname = teamPlayers.pathname.replace(/\/+$/, "") + "/jogadores";
+    add("team-players", teamPlayers);
+  }
+
+  for (const baseCandidate of [...candidates]) {
+    if (baseCandidate.url.hostname !== "www.zerozero.pt") continue;
+
+    for (const mirrorHost of ["zerozero.football", "zerozero.africa"]) {
+      const mirror = new URL(baseCandidate.url.toString());
+      mirror.hostname = mirrorHost;
+      add(baseCandidate.label + "-" + mirrorHost, mirror);
+    }
+  }
+
+  return candidates;
+}
+
+function extractTeamId(url: URL) {
+  const match = url.pathname.match(/\/equipa\/[^/]+\/(\d+)/i);
+  return match ? match[1] : null;
+}
+
+async function fetchCandidate(targetUrl: URL) {
+  let current = new URL(targetUrl.toString());
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const response = await fetch(current, {
         redirect: "manual",
-        signal: AbortSignal.timeout(12000),
+        signal: AbortSignal.timeout(10000),
         headers: {
           "User-Agent":
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
@@ -209,7 +311,10 @@ async function fetchDirectZeroZero(initialUrl: URL) {
       }
 
       const next = new URL(location, current);
-      validateZeroZeroUrl(next.toString());
+      if (!isAllowedZeroZeroHost(next.hostname)) {
+        return { ok: false, status: response.status, body: "" };
+      }
+
       current = next;
     } catch {
       return { ok: false, status: 0, body: "" };
@@ -223,11 +328,11 @@ async function fetchWithJinaReader(targetUrl: URL) {
   try {
     const readerUrl = "https://r.jina.ai/" + targetUrl.toString();
     const response = await fetch(readerUrl, {
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(18000),
       headers: {
         Accept: "text/plain",
         "X-Engine": "browser",
-        "X-Timeout": "20",
+        "X-Timeout": "15",
         "X-Locale": "pt-PT",
         "X-No-Cache": "true",
         DNT: "1",
@@ -244,9 +349,35 @@ async function fetchWithJinaReader(targetUrl: URL) {
   }
 }
 
+function looksUsefulZeroZeroBody(body: string) {
+  if (!body || body.length < 1000) return false;
+  if (looksLikeBotProtection(body)) return false;
+
+  return (
+    /plantel/i.test(body) ||
+    /\/jogador\//i.test(body) ||
+    /guarda[\s-]*redes/i.test(body) ||
+    /\bdefesa\b/i.test(body) ||
+    /\bm[eé]dio\b/i.test(body) ||
+    /\bavan[cç]ado\b/i.test(body)
+  );
+}
+
 function looksLikeBotProtection(body: string) {
-  return /cf-chl|cloudflare|just a moment|enable javascript and cookies|attention required/i.test(
+  return /cf-chl|cloudflare|just a moment|enable javascript and cookies|attention required|access denied|forbidden/i.test(
     body.slice(0, 120000),
+  );
+}
+
+function isAllowedZeroZeroHost(hostname: string) {
+  const host = hostname.toLowerCase();
+  return (
+    host === "zerozero.pt" ||
+    host === "www.zerozero.pt" ||
+    host === "zerozero.football" ||
+    host === "www.zerozero.football" ||
+    host === "zerozero.africa" ||
+    host === "www.zerozero.africa"
   );
 }
 
