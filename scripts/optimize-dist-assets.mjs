@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
@@ -6,6 +7,14 @@ const DIST_DIR = path.resolve("dist");
 const MIN_BYTES = 180 * 1024;
 const MAX_EDGE = 2200;
 const WEBP_QUALITY = 82;
+const BATCH_SIZE = 4;
+
+const SUPABASE_URL = "https://pukvvgovkksbispokjvx.supabase.co";
+const STORAGE_BUCKET = "site-assets";
+const STORAGE_PREFIX = "v1";
+const UPLOAD_ENDPOINT = `${SUPABASE_URL}/functions/v1/site-asset-upload`;
+const PUBLIC_BASE = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}`;
+
 const TEXT_EXTENSIONS = new Set([".html", ".js", ".css", ".json", ".map"]);
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png"]);
 
@@ -30,29 +39,80 @@ function formatMb(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function replacementVariants(oldRel, newRel) {
+function encodeStoragePath(value) {
+  return value
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+}
+
+function replacementVariants(oldRel, publicUrl) {
   const oldRoot = `/${oldRel}`;
-  const newRoot = `/${newRel}`;
   const oldPublic = `/public/${oldRel}`;
-  const newPublic = `/public/${newRel}`;
 
   return [
-    [oldPublic, newPublic],
-    [encodeURI(oldPublic), encodeURI(newPublic)],
-    [oldRoot, newRoot],
-    [encodeURI(oldRoot), encodeURI(newRoot)],
-    [oldRel, newRel],
-    [encodeURI(oldRel), encodeURI(newRel)],
+    [oldPublic, publicUrl],
+    [encodeURI(oldPublic), publicUrl],
+    [oldRoot, publicUrl],
+    [encodeURI(oldRoot), publicUrl],
+    [oldRel, publicUrl],
+    [encodeURI(oldRel), publicUrl],
   ];
 }
 
-async function convertImage(filePath) {
+function storageTarget(oldRel, bytes) {
+  const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 16);
+  const storagePath = `${STORAGE_PREFIX}/${oldRel}.${hash}.webp`;
+  const publicUrl = `${PUBLIC_BASE}/${encodeStoragePath(storagePath)}`;
+
+  return { storagePath, publicUrl };
+}
+
+async function ensureRemoteImage(outputPath, oldRel) {
+  const bytes = await readFile(outputPath);
+  const { storagePath, publicUrl } = storageTarget(oldRel, bytes);
+
+  try {
+    const existing = await fetch(publicUrl, { method: "HEAD" });
+    if (existing.ok) {
+      return { publicUrl, storagePath, uploaded: false };
+    }
+  } catch {
+    // A missing cache/CDN response should not block the upload attempt.
+  }
+
+  const token = process.env.PRISMA_ASSET_SYNC_TOKEN;
+
+  if (!token) {
+    throw new Error("PRISMA_ASSET_SYNC_TOKEN is missing.");
+  }
+
+  const response = await fetch(UPLOAD_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "content-type": "image/webp",
+      "x-prisma-token": token,
+      "x-asset-path": encodeURIComponent(storagePath),
+    },
+    body: bytes,
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(
+      `Supabase upload failed (${response.status})${message ? `: ${message}` : ""}`,
+    );
+  }
+
+  return { publicUrl, storagePath, uploaded: true };
+}
+
+async function convertAndMirrorImage(filePath) {
   const info = await stat(filePath);
   if (info.size < MIN_BYTES) return null;
 
   const oldRel = toPosixRelative(filePath);
   const outputPath = `${filePath}.webp`;
-  const newRel = `${oldRel}.webp`;
 
   await sharp(filePath)
     .rotate()
@@ -76,14 +136,26 @@ async function convertImage(filePath) {
     return null;
   }
 
-  await unlink(filePath);
+  try {
+    const remote = await ensureRemoteImage(outputPath, oldRel);
 
-  return {
-    oldRel,
-    newRel,
-    before: info.size,
-    after: outputInfo.size,
-  };
+    // Only remove deployment copies after the CDN object is confirmed.
+    await unlink(filePath);
+    await unlink(outputPath);
+
+    return {
+      oldRel,
+      publicUrl: remote.publicUrl,
+      storagePath: remote.storagePath,
+      uploaded: remote.uploaded,
+      before: info.size,
+      after: outputInfo.size,
+    };
+  } catch (error) {
+    // Keep the original deployment image as a safe fallback.
+    await unlink(outputPath).catch(() => {});
+    throw error;
+  }
 }
 
 async function rewriteReferences(files, conversions) {
@@ -106,7 +178,7 @@ async function rewriteReferences(files, conversions) {
     for (const conversion of conversions) {
       for (const [from, to] of replacementVariants(
         conversion.oldRel,
-        conversion.newRel,
+        conversion.publicUrl,
       )) {
         if (content.includes(from)) content = content.split(from).join(to);
       }
@@ -135,18 +207,19 @@ async function main() {
   );
 
   const conversions = [];
-  const batchSize = 4;
+  let failed = 0;
 
-  for (let offset = 0; offset < candidates.length; offset += batchSize) {
-    const batch = candidates.slice(offset, offset + batchSize);
+  for (let offset = 0; offset < candidates.length; offset += BATCH_SIZE) {
+    const batch = candidates.slice(offset, offset + BATCH_SIZE);
 
     const results = await Promise.all(
       batch.map(async (filePath) => {
         try {
-          return await convertImage(filePath);
+          return await convertAndMirrorImage(filePath);
         } catch (error) {
+          failed += 1;
           console.warn(
-            `[asset-opt] skipped ${toPosixRelative(filePath)}: ${error instanceof Error ? error.message : String(error)}`,
+            `[asset-opt] kept local fallback for ${toPosixRelative(filePath)}: ${error instanceof Error ? error.message : String(error)}`,
           );
           return null;
         }
@@ -159,12 +232,13 @@ async function main() {
   const refreshedFiles = await walk(DIST_DIR);
   const rewritten = await rewriteReferences(refreshedFiles, conversions);
   const before = conversions.reduce((sum, item) => sum + item.before, 0);
-  const after = conversions.reduce((sum, item) => sum + item.after, 0);
-  const saved = before - after;
-  const pct = before > 0 ? Math.round((saved / before) * 100) : 0;
+  const remoteBytes = conversions.reduce((sum, item) => sum + item.after, 0);
+  const savedFromDeployment = before;
+  const uploaded = conversions.filter((item) => item.uploaded).length;
+  const reused = conversions.length - uploaded;
 
   console.log(
-    `[asset-opt] ${conversions.length} images optimized; ${formatMb(before)} -> ${formatMb(after)} (${pct}% saved). Rewrote ${rewritten} output files.`,
+    `[asset-opt] ${conversions.length} images moved off Vercel; ${formatMb(savedFromDeployment)} removed from deployment output; ${formatMb(remoteBytes)} stored as optimized WebP in Supabase. Uploaded ${uploaded}, reused ${reused}, local fallbacks ${failed}. Rewrote ${rewritten} output files.`,
   );
 }
 
