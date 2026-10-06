@@ -42,7 +42,7 @@ export default function FootballTeamPage() {
     const teamResult = await supabase
       .from("football_teams")
       .select(
-        "id,name,season,created_at,zerozero_url,zerozero_last_synced_at"
+        "id,name,season,created_at,zerozero_url,zerozero_last_synced_at,zerozero_cached_preview,zerozero_preview_cached_at"
       )
       .eq("id", teamId)
       .maybeSingle();
@@ -255,7 +255,7 @@ export default function FootballTeamPage() {
     await loadData();
   }
 
-  async function previewZerozero() {
+  async function previewZerozero({ force = false } = {}) {
     const url = zerozeroUrl.trim();
 
     if (!url) {
@@ -270,6 +270,30 @@ export default function FootballTeamPage() {
     setZerozeroPreview(null);
     setSelectedImportKeys([]);
 
+    const cached = team?.zerozero_cached_preview;
+    const cachedAt = team?.zerozero_preview_cached_at;
+    const cacheUrl = cached?.sourceUrl || cached?.source_url || null;
+    const cacheAgeMs = cachedAt
+      ? Date.now() - new Date(cachedAt).getTime()
+      : Number.POSITIVE_INFINITY;
+    const cacheFresh = cacheAgeMs < 24 * 60 * 60 * 1000;
+
+    if (!force && cached && cacheUrl === url && cacheFresh) {
+      const previewPlayers = (cached.players || []).map((player, index) => ({
+        ...player,
+        importKey: buildImportKey(player, index),
+      }));
+
+      setZerozeroPreview({
+        ...cached,
+        players: previewPlayers,
+        fromCache: true,
+      });
+      setSelectedImportKeys(previewPlayers.map((player) => player.importKey));
+      setPreviewingZerozero(false);
+      return;
+    }
+
     const { data, error: invokeError } = await supabase.functions.invoke(
       "zerozero-squad-preview",
       {
@@ -280,7 +304,8 @@ export default function FootballTeamPage() {
     setPreviewingZerozero(false);
 
     if (invokeError) {
-      let message = invokeError.message || "Não foi possível consultar o ZeroZero.";
+      let message =
+        invokeError.message || "Não foi possível consultar o ZeroZero.";
 
       if (invokeError.context) {
         try {
@@ -307,11 +332,39 @@ export default function FootballTeamPage() {
 
     const preview = {
       ...data,
+      sourceUrl: url,
       players: previewPlayers,
+      fromCache: false,
     };
 
     setZerozeroPreview(preview);
     setSelectedImportKeys(previewPlayers.map((player) => player.importKey));
+
+    const cachePayload = {
+      ...data,
+      sourceUrl: url,
+    };
+
+    const { error: cacheError } = await supabase
+      .from("football_teams")
+      .update({
+        zerozero_cached_preview: cachePayload,
+        zerozero_preview_cached_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", teamId);
+
+    if (!cacheError) {
+      setTeam((current) =>
+        current
+          ? {
+              ...current,
+              zerozero_cached_preview: cachePayload,
+              zerozero_preview_cached_at: new Date().toISOString(),
+            }
+          : current
+      );
+    }
   }
 
   function toggleImportPlayer(importKey) {
@@ -430,6 +483,20 @@ export default function FootballTeamPage() {
         .eq("id", teamId);
 
       if (teamUpdateError) throw teamUpdateError;
+
+      const { error: syncLogError } = await supabase
+        .from("football_squad_syncs")
+        .insert({
+          user_id: userData.user.id,
+          team_id: teamId,
+          source: "zerozero",
+          players_added: toInsert.length,
+          players_updated: toUpdate.length,
+        });
+
+      if (syncLogError) {
+        console.warn("Não foi possível registar a sincronização:", syncLogError);
+      }
 
       setImportMessage(
         [
@@ -568,11 +635,22 @@ export default function FootballTeamPage() {
 
                 <button
                   type="button"
-                  onClick={previewZerozero}
+                  onClick={() =>
+                    previewZerozero({
+                      force:
+                        Boolean(team?.zerozero_last_synced_at) &&
+                        team?.zerozero_url === zerozeroUrl.trim(),
+                    })
+                  }
                   disabled={previewingZerozero || !zerozeroUrl.trim()}
                   className="h-[46px] rounded-xl border border-[#B89A84]/30 bg-[#B89A84]/10 px-5 text-sm font-medium text-[#D9C1AF] hover:bg-[#B89A84]/15 disabled:opacity-40 transition"
                 >
-                  {previewingZerozero ? "A consultar..." : "Pré-visualizar plantel"}
+                  {previewingZerozero
+                    ? "A consultar..."
+                    : team?.zerozero_last_synced_at &&
+                        team?.zerozero_url === zerozeroUrl.trim()
+                      ? "Atualizar do ZeroZero"
+                      : "Pré-visualizar plantel"}
                 </button>
               </div>
 
@@ -594,6 +672,7 @@ export default function FootballTeamPage() {
                         {zerozeroPreview.season
                           ? " · " + zerozeroPreview.season
                           : ""}
+                        {zerozeroPreview.fromCache ? " · cache" : ""}
                       </p>
                     </div>
 
