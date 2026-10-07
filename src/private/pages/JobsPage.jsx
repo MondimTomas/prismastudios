@@ -12,7 +12,8 @@ const emptyForm = {
   job_date: "",
   revenue: "",
   costs: "",
-  payment_status: "paid",
+  status: "scheduled",
+  payment_status: "unpaid",
   source: "",
   notes: "",
 };
@@ -189,7 +190,15 @@ export default function JobsPage() {
   }
 
   function handleJobDateChange(value) {
-    setForm({ ...form, job_date: value });
+    const suggestedStatus = statusForDate(value);
+
+    setForm((current) => ({
+      ...current,
+      job_date: value,
+      status: suggestedStatus,
+      payment_status:
+        suggestedStatus === "scheduled" ? "unpaid" : current.payment_status,
+    }));
 
     if (form.business_line === "futebol" && teamChoice === "__new__") {
       setNewTeamSeason(value ? footballSeason(value) : "");
@@ -352,7 +361,7 @@ export default function JobsPage() {
         title: form.title.trim(),
         service_type: form.service_type.trim() || null,
         job_date: form.job_date,
-        status: "completed",
+        status: form.status,
         revenue: Number(form.revenue || 0),
         costs: Number(form.costs || 0),
         payment_status: form.payment_status,
@@ -401,6 +410,38 @@ export default function JobsPage() {
       setError(submitError.message || "Não foi possível guardar o trabalho.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function updateJobField(id, field, value) {
+    const allowedFields = ["status", "payment_status"];
+    if (!allowedFields.includes(field)) return;
+
+    const previousJob = jobs.find((job) => job.id === id);
+    if (!previousJob) return;
+
+    setError("");
+    setJobs((current) =>
+      current.map((job) =>
+        job.id === id ? { ...job, [field]: value } : job
+      )
+    );
+
+    const { error: updateError } = await supabase
+      .from("workspace_jobs")
+      .update({
+        [field]: value,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (updateError) {
+      setJobs((current) =>
+        current.map((job) =>
+          job.id === id ? { ...job, [field]: previousJob[field] } : job
+        )
+      );
+      setError(updateError.message);
     }
   }
 
@@ -485,8 +526,8 @@ export default function JobsPage() {
           <span className="col-span-2">Data</span>
           <span className="col-span-3">Cliente / Trabalho</span>
           <span className="col-span-2">Ramo</span>
-          <span className="col-span-2 text-right">Receita</span>
-          <span className="col-span-2">Pagamento</span>
+          <span className="col-span-1 text-right">Receita</span>
+          <span className="col-span-3">Estado / Pagamento</span>
           <span />
         </div>
 
@@ -541,11 +582,35 @@ export default function JobsPage() {
                     </p>
                   )}
                 </div>
-                <div className="md:col-span-2 md:text-right text-sm font-medium">
+                <div className="md:col-span-1 md:text-right text-sm font-medium">
                   {money(job.revenue)}
                 </div>
-                <div className="md:col-span-2">
-                  <PaymentBadge value={job.payment_status} />
+                <div className="md:col-span-3 flex flex-wrap items-center gap-2">
+                  <select
+                    value={job.status}
+                    onChange={(e) =>
+                      updateJobField(job.id, "status", e.target.value)
+                    }
+                    className="rounded-lg border border-white/10 bg-[#1A1A1A] px-2.5 py-1.5 text-xs text-white/65 outline-none focus:border-[#B89A84]/50"
+                    aria-label={"Estado de " + job.title}
+                  >
+                    <option value="scheduled">Agendado</option>
+                    <option value="in_progress">Em curso</option>
+                    <option value="completed">Realizado</option>
+                    <option value="cancelled">Cancelado</option>
+                  </select>
+                  <select
+                    value={job.payment_status}
+                    onChange={(e) =>
+                      updateJobField(job.id, "payment_status", e.target.value)
+                    }
+                    className="rounded-lg border border-white/10 bg-[#1A1A1A] px-2.5 py-1.5 text-xs text-white/50 outline-none focus:border-[#B89A84]/50"
+                    aria-label={"Pagamento de " + job.title}
+                  >
+                    <option value="unpaid">Por pagar</option>
+                    <option value="partial">Parcial</option>
+                    <option value="paid">Pago</option>
+                  </select>
                 </div>
                 <div className="md:col-span-1 md:text-right">
                   <button
@@ -664,7 +729,30 @@ export default function JobsPage() {
                 />
               </Field>
 
-              <div className="grid sm:grid-cols-3 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Field label="Estado">
+                  <select
+                    value={form.status}
+                    onChange={(e) => setForm({ ...form, status: e.target.value })}
+                    className={inputClass}
+                  >
+                    <option value="scheduled">Agendado</option>
+                    <option value="in_progress">Em curso</option>
+                    <option value="completed">Realizado</option>
+                    <option value="cancelled">Cancelado</option>
+                  </select>
+                </Field>
+                <Field label="Pagamento">
+                  <select
+                    value={form.payment_status}
+                    onChange={(e) => setForm({ ...form, payment_status: e.target.value })}
+                    className={inputClass}
+                  >
+                    <option value="unpaid">Por pagar</option>
+                    <option value="partial">Parcial</option>
+                    <option value="paid">Pago</option>
+                  </select>
+                </Field>
                 <Field label="Valor cobrado (€)">
                   <input
                     type="number"
@@ -685,17 +773,6 @@ export default function JobsPage() {
                     placeholder="Combustível..."
                     className={inputClass}
                   />
-                </Field>
-                <Field label="Pagamento">
-                  <select
-                    value={form.payment_status}
-                    onChange={(e) => setForm({ ...form, payment_status: e.target.value })}
-                    className={inputClass}
-                  >
-                    <option value="paid">Pago</option>
-                    <option value="partial">Parcial</option>
-                    <option value="unpaid">Por pagar</option>
-                  </select>
                 </Field>
               </div>
 
@@ -993,6 +1070,20 @@ function PaymentBadge({ value }) {
       {labels[value] || value}
     </span>
   );
+}
+
+function statusForDate(value) {
+  if (!value) return "scheduled";
+
+  const now = new Date();
+  const today =
+    now.getFullYear() +
+    "-" +
+    String(now.getMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(now.getDate()).padStart(2, "0");
+
+  return value >= today ? "scheduled" : "completed";
 }
 
 function money(value) {
