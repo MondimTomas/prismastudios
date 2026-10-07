@@ -132,6 +132,7 @@ export default function Login() {
       email: registration.email.trim(),
       password: registration.password,
       options: {
+        emailRedirectTo: window.location.origin + "/tomasmondim/login",
         data: {
           workspace_context: "prisma_collaborator",
           full_name: registration.full_name.trim(),
