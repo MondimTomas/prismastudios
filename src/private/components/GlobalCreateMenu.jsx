@@ -28,7 +28,7 @@ export default function GlobalCreateMenu() {
       hint: line ? `${line.workLabel} · ${line.name}` : "histórico / novo",
       action: () => {
         const query = line ? `?novo=1&ramo=${line.id}` : "?novo=1";
-        navigate("/tomasmondim/trabalhos" + query);
+        navigate("/tomasmondim/admin/trabalhos" + query);
       },
     },
     { label: "Tarefa", hint: "follow-up ou execução" },
