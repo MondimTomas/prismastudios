@@ -101,6 +101,43 @@ export default function TeamManagementPage() {
     await load();
   }
 
+  async function unassignAssignment(assignment) {
+    const job = assignment.workspace_jobs;
+    const person = people.find(
+      (item) => item.user_id === assignment.collaborator_user_id
+    );
+
+    const confirmed = window.confirm(
+      "Desatribuir " +
+        (person?.profile?.full_name || "este colaborador") +
+        " de " +
+        (job?.title || job?.client_name || "este jogo") +
+        "? A fee e a deslocação deixam imediatamente de contar como custo."
+    );
+
+    if (!confirmed) return;
+
+    setSaving(true);
+    setError("");
+
+    const { error: updateError } = await supabase
+      .from("collaborator_assignments")
+      .update({
+        status: "cancelled",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", assignment.id);
+
+    setSaving(false);
+
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+
+    await load();
+  }
+
   async function createSop(event) {
     event.preventDefault();
     setSaving(true);
@@ -203,12 +240,40 @@ export default function TeamManagementPage() {
         </form>
 
         <div className="mt-4 space-y-2">
-          {assignments.slice(0,12).map((assignment)=>{
+          {assignments
+            .filter((assignment) => assignment.status !== "cancelled")
+            .slice(0,12)
+            .map((assignment)=>{
             const person = people.find((item)=>item.user_id===assignment.collaborator_user_id);
             const job = assignment.workspace_jobs;
             return <div key={assignment.id} className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div><p className="text-sm text-white/70">{job?.client_name} · {job?.title}</p><p className="text-xs text-white/30 mt-1">{formatDate(job?.job_date)} · {person?.profile?.full_name || "Colaborador"} · {assignment.status}</p></div>
-              <p className="text-sm font-medium">{money(Number(assignment.fee_amount||0)+Number(assignment.travel_reimbursement||0))}</p>
+              <div>
+                <p className="text-sm text-white/70">{job?.client_name} · {job?.title}</p>
+                <p className="text-xs text-white/30 mt-1">
+                  {formatDate(job?.job_date)} · {person?.profile?.full_name || "Colaborador"} · {assignmentStatusLabel(assignment.status)}
+                </p>
+              </div>
+              <div className="flex items-center gap-3 md:justify-end">
+                <div className="text-right">
+                  <p className="text-sm font-medium">{money(Number(assignment.fee_amount||0)+Number(assignment.travel_reimbursement||0))}</p>
+                  <p className="text-[11px] text-white/25 mt-0.5">
+                    {money(assignment.fee_amount)} fee
+                    {Number(assignment.travel_reimbursement || 0) > 0
+                      ? " + " + money(assignment.travel_reimbursement) + " deslocação"
+                      : ""}
+                  </p>
+                </div>
+                {["assigned","accepted"].includes(assignment.status) && (
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => unassignAssignment(assignment)}
+                    className="rounded-lg border border-red-400/20 px-3 py-2 text-xs text-red-200/70 hover:bg-red-400/10 hover:text-red-100 disabled:opacity-40 transition"
+                  >
+                    Desatribuir
+                  </button>
+                )}
+              </div>
             </div>;
           })}
         </div>
@@ -254,6 +319,15 @@ function Metric({label,value}) { return <div className="rounded-2xl border borde
 function Empty({children}) { return <div className="rounded-2xl border border-dashed border-white/10 px-5 py-10 text-center text-sm text-white/30">{children}</div>; }
 function Field({label,children}) { return <label className="block"><span className="block text-xs text-white/40 mb-2">{label}</span>{children}</label>; }
 const inputClass="w-full rounded-xl border border-white/10 bg-[#1A1A1A] px-3.5 py-3 text-sm text-white outline-none focus:border-[#B89A84]/60";
+function assignmentStatusLabel(value){
+  return ({
+    assigned:"Por confirmar",
+    accepted:"Aceite",
+    declined:"Recusado",
+    completed:"Concluído",
+    cancelled:"Desatribuído",
+  }[value] || value);
+}
 function money(value){return new Intl.NumberFormat("pt-PT",{style:"currency",currency:"EUR"}).format(Number(value||0));}
 function formatDate(value){if(!value)return"—";return new Intl.DateTimeFormat("pt-PT",{day:"2-digit",month:"short",year:"numeric"}).format(new Date(value+"T12:00:00"));}
 function dateKey(date){return date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");}
