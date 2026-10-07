@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useParams } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import PortfolioPage from "./pages/PortfolioPage";
 import AboutPage from "./pages/AboutPage";
@@ -62,6 +62,16 @@ function LegacyLineRedirect() {
 function LegacyFootballTeamRedirect() {
   const { teamId } = useParams();
   return <Navigate to={"/tomasmondim/admin/futebol/equipas/" + teamId} replace />;
+}
+
+function LegacyJobsRedirect() {
+  const location = useLocation();
+  return (
+    <Navigate
+      to={"/tomasmondim/admin/trabalhos" + location.search}
+      replace
+    />
+  );
 }
 
 export default function App() {
@@ -162,7 +172,7 @@ export default function App() {
       <Route path="/tomasmondim" element={<Navigate to="/tomasmondim/admin" replace />} />
       <Route path="/tomasmondim/ramo/:lineId" element={<LegacyLineRedirect />} />
       <Route path="/tomasmondim/ramo/:lineId/:section" element={<LegacyLineRedirect />} />
-      <Route path="/tomasmondim/trabalhos" element={<Navigate to="/tomasmondim/admin/trabalhos" replace />} />
+      <Route path="/tomasmondim/trabalhos" element={<LegacyJobsRedirect />} />
       <Route path="/tomasmondim/futebol/equipas/:teamId" element={<LegacyFootballTeamRedirect />} />
       <Route path="/tomasmondim/clientes" element={<Navigate to="/tomasmondim/admin/clientes" replace />} />
       <Route path="/tomasmondim/tarefas" element={<Navigate to="/tomasmondim/admin/tarefas" replace />} />
