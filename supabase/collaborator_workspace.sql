@@ -1,0 +1,17 @@
+-- Prisma Studios collaborator workspace.
+-- Applied to Supabase in October 2026.
+-- Tables:
+--   workspace_members
+--   collaborator_profiles
+--   collaborator_assignments
+--   workspace_sops
+--
+-- Important security model:
+-- - owner users can manage collaborators, assignments and SOPs;
+-- - collaborators can only read/update their own profile;
+-- - collaborators can read their own assignments and assigned workspace_jobs;
+-- - collaborators can only change assignment status, not fees or job ownership;
+-- - new self-registrations start as pending and require owner approval.
+--
+-- The canonical deployed migration is stored in Supabase migration history:
+-- collaborator_workspace + lock_member_roles_to_owner.

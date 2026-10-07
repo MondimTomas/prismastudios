@@ -2,32 +2,55 @@ import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
-export default function ProtectedRoute({ children }) {
+export default function ProtectedRoute({
+  children,
+  requiredRole = null,
+  loginPath = "/tomasmondim/login",
+}) {
   const location = useLocation();
   const [session, setSession] = useState(null);
+  const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
 
-    supabase.auth.getSession().then(({ data }) => {
+    async function resolveAccess(nextSession) {
       if (!active) return;
-      setSession(data.session);
+
+      setSession(nextSession);
+
+      if (!nextSession || !requiredRole) {
+        setMember(null);
+        setLoading(false);
+        return;
+      }
+
+      const { data } = await supabase
+        .from("workspace_members")
+        .select("role,status")
+        .eq("user_id", nextSession.user.id)
+        .maybeSingle();
+
+      if (!active) return;
+      setMember(data || null);
       setLoading(false);
-    });
+    }
+
+    supabase.auth.getSession().then(({ data }) => resolveAccess(data.session));
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setLoading(false);
+      setLoading(true);
+      resolveAccess(nextSession);
     });
 
     return () => {
       active = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [requiredRole]);
 
   if (loading) {
     return (
@@ -40,11 +63,21 @@ export default function ProtectedRoute({ children }) {
   if (!session) {
     return (
       <Navigate
-        to="/tomasmondim/login"
+        to={loginPath}
         replace
         state={{ from: location.pathname }}
       />
     );
+  }
+
+  if (requiredRole && member?.role !== requiredRole) {
+    if (member?.role === "owner") {
+      return <Navigate to="/tomasmondim" replace />;
+    }
+    if (member?.role === "collaborator") {
+      return <Navigate to="/equipa" replace />;
+    }
+    return <Navigate to={loginPath} replace />;
   }
 
   return children;

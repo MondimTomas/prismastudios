@@ -40,10 +40,23 @@ import PlaybookPage from "./private/pages/PlaybookPage";
 import CalendarPage from "./private/pages/CalendarPage";
 import JobsPage from "./private/pages/JobsPage";
 import FootballTeamPage from "./private/pages/FootballTeamPage";
+import TeamManagementPage from "./private/pages/TeamManagementPage";
 import ProtectedRoute from "./private/ProtectedRoute";
+import TeamLogin from "./team/TeamLogin";
+import TeamRegister from "./team/TeamRegister";
+import TeamDashboard from "./team/TeamDashboard";
+import TeamProfile from "./team/TeamProfile";
 
 function PrivatePage({ children }) {
-  return <ProtectedRoute>{children}</ProtectedRoute>;
+  return <ProtectedRoute requiredRole="owner">{children}</ProtectedRoute>;
+}
+
+function TeamPage({ children }) {
+  return (
+    <ProtectedRoute requiredRole="collaborator" loginPath="/equipa/login">
+      {children}
+    </ProtectedRoute>
+  );
 }
 
 export default function App() {
@@ -116,6 +129,24 @@ export default function App() {
       <Route path="/contactos" element={<ContactPage />} />
 
       <Route path="/tomasmondim/login" element={<Login />} />
+      <Route path="/equipa/login" element={<TeamLogin />} />
+      <Route path="/equipa/registo" element={<TeamRegister />} />
+      <Route
+        path="/equipa"
+        element={
+          <TeamPage>
+            <TeamDashboard />
+          </TeamPage>
+        }
+      />
+      <Route
+        path="/equipa/perfil"
+        element={
+          <TeamPage>
+            <TeamProfile />
+          </TeamPage>
+        }
+      />
       <Route
         path="/tomasmondim"
         element={
@@ -193,6 +224,14 @@ export default function App() {
         element={
           <PrivatePage>
             <PlaybookPage />
+          </PrivatePage>
+        }
+      />
+      <Route
+        path="/tomasmondim/equipa"
+        element={
+          <PrivatePage>
+            <TeamManagementPage />
           </PrivatePage>
         }
       />
