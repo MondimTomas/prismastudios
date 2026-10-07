@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import PortfolioPage from "./pages/PortfolioPage";
 import AboutPage from "./pages/AboutPage";
@@ -42,8 +42,6 @@ import JobsPage from "./private/pages/JobsPage";
 import FootballTeamPage from "./private/pages/FootballTeamPage";
 import TeamManagementPage from "./private/pages/TeamManagementPage";
 import ProtectedRoute from "./private/ProtectedRoute";
-import TeamLogin from "./team/TeamLogin";
-import TeamRegister from "./team/TeamRegister";
 import TeamDashboard from "./team/TeamDashboard";
 import TeamProfile from "./team/TeamProfile";
 
@@ -52,11 +50,18 @@ function PrivatePage({ children }) {
 }
 
 function TeamPage({ children }) {
-  return (
-    <ProtectedRoute requiredRole="collaborator" loginPath="/equipa/login">
-      {children}
-    </ProtectedRoute>
-  );
+  return <ProtectedRoute requiredRole="collaborator">{children}</ProtectedRoute>;
+}
+
+function LegacyLineRedirect() {
+  const { lineId, section } = useParams();
+  const suffix = section ? "/" + section : "";
+  return <Navigate to={"/tomasmondim/admin/ramo/" + lineId + suffix} replace />;
+}
+
+function LegacyFootballTeamRedirect() {
+  const { teamId } = useParams();
+  return <Navigate to={"/tomasmondim/admin/futebol/equipas/" + teamId} replace />;
 }
 
 export default function App() {
@@ -72,54 +77,24 @@ export default function App() {
       <Route path="/lookbook/restauracao" element={<LookbookRestauracao />} />
       <Route path="/lookbook/festas" element={<LookbookFestas />} />
       <Route path="/lookbook/desporto" element={<LookbookDesporto />} />
-      <Route
-        path="/lookbook/casamentos"
-        element={<LookbookCasamentosBatizados />}
-      />
+      <Route path="/lookbook/casamentos" element={<LookbookCasamentosBatizados />} />
 
-      <Route
-        path="/servicos/fotografia/eventos"
-        element={<ServicosFotosEventos />}
-      />
-      <Route
-        path="/servicos/fotografia/desporto"
-        element={<ServicosFotosDesporto />}
-      />
-      <Route
-        path="/servicos/fotografia/retratos"
-        element={<ServicosFotosRetratos />}
-      />
-      <Route
-        path="/servicos/fotografia/restauracao"
-        element={<ServicosFotosRestauracao />}
-      />
-      <Route
-        path="/servicos/fotografia/publicidade"
-        element={<ServicosFotosPublicidade />}
-      />
+      <Route path="/servicos/fotografia/eventos" element={<ServicosFotosEventos />} />
+      <Route path="/servicos/fotografia/desporto" element={<ServicosFotosDesporto />} />
+      <Route path="/servicos/fotografia/retratos" element={<ServicosFotosRetratos />} />
+      <Route path="/servicos/fotografia/restauracao" element={<ServicosFotosRestauracao />} />
+      <Route path="/servicos/fotografia/publicidade" element={<ServicosFotosPublicidade />} />
       <Route path="/servicos/fotografia/drone" element={<ServicosFotosDrone />} />
-      <Route
-        path="/servicos/fotografia/imobiliarias"
-        element={<ServicosFotosImobiliarias />}
-      />
+      <Route path="/servicos/fotografia/imobiliarias" element={<ServicosFotosImobiliarias />} />
 
       <Route path="/servicos/video/eventos" element={<ServicosVideoEventos />} />
-      <Route
-        path="/servicos/video/imobiliario"
-        element={<ServicosVideoImobiliario />}
-      />
+      <Route path="/servicos/video/imobiliario" element={<ServicosVideoImobiliario />} />
       <Route path="/servicos/video/dj-sets" element={<ServicosVideoDJSets />} />
       <Route path="/servicos/video/desporto" element={<ServicosVideoDesporto />} />
       <Route path="/servicos/video/youtube" element={<ServicosVideoYouTube />} />
 
-      <Route
-        path="/servicos/marketing/redes-sociais"
-        element={<MarketingRedesSociais />}
-      />
-      <Route
-        path="/servicos/marketing/web"
-        element={<MarketingDesenvolvimentoWeb />}
-      />
+      <Route path="/servicos/marketing/redes-sociais" element={<MarketingRedesSociais />} />
+      <Route path="/servicos/marketing/web" element={<MarketingDesenvolvimentoWeb />} />
       <Route path="/servicos/marketing/leads" element={<MarketingLeads />} />
 
       <Route path="/estudio" element={<StudioPage />} />
@@ -129,112 +104,77 @@ export default function App() {
       <Route path="/contactos" element={<ContactPage />} />
 
       <Route path="/tomasmondim/login" element={<Login />} />
-      <Route path="/equipa/login" element={<TeamLogin />} />
-      <Route path="/equipa/registo" element={<TeamRegister />} />
+
       <Route
-        path="/equipa"
-        element={
-          <TeamPage>
-            <TeamDashboard />
-          </TeamPage>
-        }
+        path="/tomasmondim/admin"
+        element={<PrivatePage><Dashboard /></PrivatePage>}
       />
       <Route
-        path="/equipa/perfil"
-        element={
-          <TeamPage>
-            <TeamProfile />
-          </TeamPage>
-        }
+        path="/tomasmondim/admin/ramo/:lineId"
+        element={<PrivatePage><BusinessLinePage /></PrivatePage>}
       />
       <Route
-        path="/tomasmondim"
-        element={
-          <PrivatePage>
-            <Dashboard />
-          </PrivatePage>
-        }
+        path="/tomasmondim/admin/ramo/:lineId/:section"
+        element={<PrivatePage><BusinessLinePage /></PrivatePage>}
       />
       <Route
-        path="/tomasmondim/ramo/:lineId"
-        element={
-          <PrivatePage>
-            <BusinessLinePage />
-          </PrivatePage>
-        }
+        path="/tomasmondim/admin/trabalhos"
+        element={<PrivatePage><JobsPage /></PrivatePage>}
       />
       <Route
-        path="/tomasmondim/ramo/:lineId/:section"
-        element={
-          <PrivatePage>
-            <BusinessLinePage />
-          </PrivatePage>
-        }
+        path="/tomasmondim/admin/futebol/equipas/:teamId"
+        element={<PrivatePage><FootballTeamPage /></PrivatePage>}
       />
       <Route
-        path="/tomasmondim/trabalhos"
-        element={
-          <PrivatePage>
-            <JobsPage />
-          </PrivatePage>
-        }
+        path="/tomasmondim/admin/clientes"
+        element={<PrivatePage><ClientsPage /></PrivatePage>}
       />
       <Route
-        path="/tomasmondim/futebol/equipas/:teamId"
-        element={
-          <PrivatePage>
-            <FootballTeamPage />
-          </PrivatePage>
-        }
+        path="/tomasmondim/admin/tarefas"
+        element={<PrivatePage><TasksPage /></PrivatePage>}
       />
       <Route
-        path="/tomasmondim/clientes"
-        element={
-          <PrivatePage>
-            <ClientsPage />
-          </PrivatePage>
-        }
+        path="/tomasmondim/admin/calendario"
+        element={<PrivatePage><CalendarPage /></PrivatePage>}
       />
       <Route
-        path="/tomasmondim/tarefas"
-        element={
-          <PrivatePage>
-            <TasksPage />
-          </PrivatePage>
-        }
+        path="/tomasmondim/admin/financeiro"
+        element={<PrivatePage><FinancePage /></PrivatePage>}
       />
       <Route
-        path="/tomasmondim/calendario"
-        element={
-          <PrivatePage>
-            <CalendarPage />
-          </PrivatePage>
-        }
+        path="/tomasmondim/admin/playbook"
+        element={<PrivatePage><PlaybookPage /></PrivatePage>}
       />
       <Route
-        path="/tomasmondim/financeiro"
-        element={
-          <PrivatePage>
-            <FinancePage />
-          </PrivatePage>
-        }
+        path="/tomasmondim/admin/equipa"
+        element={<PrivatePage><TeamManagementPage /></PrivatePage>}
+      />
+
+      <Route
+        path="/tomasmondim/:workspaceSlug"
+        element={<TeamPage><TeamDashboard /></TeamPage>}
       />
       <Route
-        path="/tomasmondim/playbook"
-        element={
-          <PrivatePage>
-            <PlaybookPage />
-          </PrivatePage>
-        }
+        path="/tomasmondim/:workspaceSlug/perfil"
+        element={<TeamPage><TeamProfile /></TeamPage>}
       />
-      <Route
-        path="/tomasmondim/equipa"
-        element={
-          <PrivatePage>
-            <TeamManagementPage />
-          </PrivatePage>
-        }
-      />
+
+      <Route path="/tomasmondim" element={<Navigate to="/tomasmondim/admin" replace />} />
+      <Route path="/tomasmondim/ramo/:lineId" element={<LegacyLineRedirect />} />
+      <Route path="/tomasmondim/ramo/:lineId/:section" element={<LegacyLineRedirect />} />
+      <Route path="/tomasmondim/trabalhos" element={<Navigate to="/tomasmondim/admin/trabalhos" replace />} />
+      <Route path="/tomasmondim/futebol/equipas/:teamId" element={<LegacyFootballTeamRedirect />} />
+      <Route path="/tomasmondim/clientes" element={<Navigate to="/tomasmondim/admin/clientes" replace />} />
+      <Route path="/tomasmondim/tarefas" element={<Navigate to="/tomasmondim/admin/tarefas" replace />} />
+      <Route path="/tomasmondim/calendario" element={<Navigate to="/tomasmondim/admin/calendario" replace />} />
+      <Route path="/tomasmondim/financeiro" element={<Navigate to="/tomasmondim/admin/financeiro" replace />} />
+      <Route path="/tomasmondim/playbook" element={<Navigate to="/tomasmondim/admin/playbook" replace />} />
+      <Route path="/tomasmondim/equipa" element={<Navigate to="/tomasmondim/admin/equipa" replace />} />
+
+      <Route path="/equipa/login" element={<Navigate to="/tomasmondim/login" replace />} />
+      <Route path="/equipa/registo" element={<Navigate to="/tomasmondim/login?modo=registo" replace />} />
+      <Route path="/equipa" element={<Navigate to="/tomasmondim/login" replace />} />
+      <Route path="/equipa/perfil" element={<Navigate to="/tomasmondim/login" replace />} />
     </Routes>
   );
 }

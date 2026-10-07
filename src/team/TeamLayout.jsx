@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
 function navClass({ isActive }) {
@@ -9,10 +9,12 @@ function navClass({ isActive }) {
 
 export default function TeamLayout({ children, title, eyebrow = "Equipa Prisma" }) {
   const navigate = useNavigate();
+  const { workspaceSlug } = useParams();
+  const base = "/tomasmondim/" + workspaceSlug;
 
   async function logout() {
     await supabase.auth.signOut();
-    navigate("/equipa/login", { replace: true });
+    navigate("/tomasmondim/login", { replace: true });
   }
 
   return (
@@ -26,8 +28,8 @@ export default function TeamLayout({ children, title, eyebrow = "Equipa Prisma" 
             <h1 className="text-xl font-semibold mt-1">{title}</h1>
           </div>
           <div className="flex items-center gap-2 overflow-x-auto">
-            <NavLink to="/equipa" end className={navClass}>Jogos</NavLink>
-            <NavLink to="/equipa/perfil" className={navClass}>Perfil</NavLink>
+            <NavLink to={base} end className={navClass}>Trabalhos</NavLink>
+            <NavLink to={base + "/perfil"} className={navClass}>Perfil</NavLink>
             <button
               type="button"
               onClick={logout}

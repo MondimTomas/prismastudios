@@ -3,6 +3,8 @@ import { supabase } from "../../lib/supabase";
 import { businessLines } from "../workspaceData";
 import GlobalCreateMenu from "./GlobalCreateMenu";
 
+const base = "/tomasmondim/admin";
+
 function navClass({ isActive }) {
   return [
     "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition",
@@ -27,11 +29,11 @@ export default function WorkspaceLayout({ children, title, eyebrow, actions }) {
           <p className="text-[11px] uppercase tracking-[0.32em] text-[#B89A84]">
             Prisma Studios
           </p>
-          <p className="font-semibold mt-2">Tomás Workspace</p>
+          <p className="font-semibold mt-2">Admin Workspace</p>
         </div>
 
         <nav className="space-y-1">
-          <NavLink to="/tomasmondim" end className={navClass}>
+          <NavLink to={base} end className={navClass}>
             <span>◫</span>
             <span>Visão Geral</span>
           </NavLink>
@@ -43,7 +45,7 @@ export default function WorkspaceLayout({ children, title, eyebrow, actions }) {
           {businessLines.map((line) => (
             <NavLink
               key={line.id}
-              to={`/tomasmondim/ramo/${line.id}`}
+              to={base + "/ramo/" + line.id}
               className={navClass}
             >
               <span>{line.icon}</span>
@@ -55,33 +57,26 @@ export default function WorkspaceLayout({ children, title, eyebrow, actions }) {
             Gestão
           </div>
 
-          <NavLink to="/tomasmondim/trabalhos" className={navClass}>
-            <span>▣</span>
-            <span>Trabalhos</span>
+          <NavLink to={base + "/trabalhos"} className={navClass}>
+            <span>▣</span><span>Trabalhos</span>
           </NavLink>
-          <NavLink to="/tomasmondim/clientes" className={navClass}>
-            <span>◎</span>
-            <span>Clientes</span>
+          <NavLink to={base + "/clientes"} className={navClass}>
+            <span>◎</span><span>Clientes</span>
           </NavLink>
-          <NavLink to="/tomasmondim/equipa" className={navClass}>
-            <span>♙</span>
-            <span>Equipa</span>
+          <NavLink to={base + "/equipa"} className={navClass}>
+            <span>♙</span><span>Equipa</span>
           </NavLink>
-          <NavLink to="/tomasmondim/tarefas" className={navClass}>
-            <span>✓</span>
-            <span>Tarefas</span>
+          <NavLink to={base + "/tarefas"} className={navClass}>
+            <span>✓</span><span>Tarefas</span>
           </NavLink>
-          <NavLink to="/tomasmondim/calendario" className={navClass}>
-            <span>□</span>
-            <span>Calendário</span>
+          <NavLink to={base + "/calendario"} className={navClass}>
+            <span>□</span><span>Calendário</span>
           </NavLink>
-          <NavLink to="/tomasmondim/financeiro" className={navClass}>
-            <span>€</span>
-            <span>Financeiro</span>
+          <NavLink to={base + "/financeiro"} className={navClass}>
+            <span>€</span><span>Financeiro</span>
           </NavLink>
-          <NavLink to="/tomasmondim/playbook" className={navClass}>
-            <span>▤</span>
-            <span>Playbook</span>
+          <NavLink to={base + "/playbook"} className={navClass}>
+            <span>▤</span><span>Playbook</span>
           </NavLink>
         </nav>
 
@@ -100,7 +95,7 @@ export default function WorkspaceLayout({ children, title, eyebrow, actions }) {
           <div className="max-w-[1500px] mx-auto px-5 sm:px-8 py-4 flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-[0.25em] text-[#B89A84] lg:hidden">
-                Tomás Workspace
+                Admin Workspace
               </p>
               {eyebrow && (
                 <p className="hidden lg:block text-[10px] uppercase tracking-[0.22em] text-white/30">
@@ -111,7 +106,6 @@ export default function WorkspaceLayout({ children, title, eyebrow, actions }) {
                 {title}
               </h1>
             </div>
-
             <div className="flex items-center gap-2">
               {actions}
               <GlobalCreateMenu />
@@ -120,39 +114,19 @@ export default function WorkspaceLayout({ children, title, eyebrow, actions }) {
 
           <div className="lg:hidden overflow-x-auto scrollbar-hide border-t border-white/[0.05]">
             <div className="flex gap-1 px-4 py-2 min-w-max">
-              <NavLink to="/tomasmondim" end className={navClass}>
-                Visão Geral
-              </NavLink>
+              <NavLink to={base} end className={navClass}>Visão Geral</NavLink>
               {businessLines.map((line) => (
-                <NavLink
-                  key={line.id}
-                  to={`/tomasmondim/ramo/${line.id}`}
-                  className={navClass}
-                >
+                <NavLink key={line.id} to={base + "/ramo/" + line.id} className={navClass}>
                   {line.icon} {line.name}
                 </NavLink>
               ))}
-              <NavLink to="/tomasmondim/trabalhos" className={navClass}>
-                Trabalhos
-              </NavLink>
-              <NavLink to="/tomasmondim/clientes" className={navClass}>
-                Clientes
-              </NavLink>
-              <NavLink to="/tomasmondim/equipa" className={navClass}>
-                Equipa
-              </NavLink>
-              <NavLink to="/tomasmondim/tarefas" className={navClass}>
-                Tarefas
-              </NavLink>
-              <NavLink to="/tomasmondim/calendario" className={navClass}>
-                Calendário
-              </NavLink>
-              <NavLink to="/tomasmondim/financeiro" className={navClass}>
-                Financeiro
-              </NavLink>
-              <NavLink to="/tomasmondim/playbook" className={navClass}>
-                Playbook
-              </NavLink>
+              <NavLink to={base + "/trabalhos"} className={navClass}>Trabalhos</NavLink>
+              <NavLink to={base + "/clientes"} className={navClass}>Clientes</NavLink>
+              <NavLink to={base + "/equipa"} className={navClass}>Equipa</NavLink>
+              <NavLink to={base + "/tarefas"} className={navClass}>Tarefas</NavLink>
+              <NavLink to={base + "/calendario"} className={navClass}>Calendário</NavLink>
+              <NavLink to={base + "/financeiro"} className={navClass}>Financeiro</NavLink>
+              <NavLink to={base + "/playbook"} className={navClass}>Playbook</NavLink>
             </div>
           </div>
         </header>

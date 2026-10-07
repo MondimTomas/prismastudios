@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import TeamLayout from "./TeamLayout";
 import { supabase } from "../lib/supabase";
 
 export default function TeamDashboard() {
+  const { workspaceSlug } = useParams();
   const [member, setMember] = useState(null);
   const [profile, setProfile] = useState(null);
   const [assignments, setAssignments] = useState([]);
@@ -85,7 +87,7 @@ export default function TeamDashboard() {
           <p className="text-white/45 mt-3 leading-relaxed">
             O teu perfil já está guardado. Assim que for aprovado, esta área mostra os jogos atribuídos, valores e SOPs da Prisma.
           </p>
-          <a href="/equipa/perfil" className="inline-flex mt-5 text-sm text-[#B89A84] hover:text-white">Rever o meu perfil →</a>
+          <Link to={"/tomasmondim/" + workspaceSlug + "/perfil"} className="inline-flex mt-5 text-sm text-[#B89A84] hover:text-white">Rever o meu perfil →</Link>
         </div>
       ) : (
         <>
