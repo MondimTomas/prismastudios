@@ -54,7 +54,7 @@ export default function JobsPage() {
 
     let query = supabase
       .from("workspace_jobs")
-      .select("*, football_teams(id,name,season), workspace_job_players(player_id)")
+      .select("*, football_teams(id,name,season), workspace_job_players(player_id), collaborator_assignments(fee_amount,travel_reimbursement,status)")
       .gte("job_date", "2026-01-01")
       .lte("job_date", "2026-12-31")
       .order("job_date", { ascending: false });
@@ -132,7 +132,7 @@ export default function JobsPage() {
       jobs.reduce(
         (acc, job) => {
           acc.revenue += Number(job.revenue || 0);
-          acc.costs += Number(job.costs || 0);
+          acc.costs += totalCostForJob(job);
           return acc;
         },
         { revenue: 0, costs: 0 }
@@ -502,8 +502,8 @@ export default function JobsPage() {
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mt-7">
         <Metric label="Trabalhos" value={String(jobs.length)} />
         <Metric label="Receita" value={money(totals.revenue)} />
-        <Metric label="Custos diretos" value={money(totals.costs)} />
-        <Metric label="Margem registada" value={money(totals.revenue - totals.costs)} />
+        <Metric label="Custos totais" value={money(totals.costs)} />
+        <Metric label="Margem real" value={money(totals.revenue - totals.costs)} />
         {lineFilter === "futebol" && (
           <>
             <Metric label="Equipas trabalhadas" value={String(footballStats.teams)} />
@@ -526,8 +526,8 @@ export default function JobsPage() {
           <span className="col-span-2">Data</span>
           <span className="col-span-3">Cliente / Trabalho</span>
           <span className="col-span-2">Ramo</span>
-          <span className="col-span-1 text-right">Receita</span>
-          <span className="col-span-3">Estado / Pagamento</span>
+          <span className="col-span-2 text-right">Financeiro</span>
+          <span className="col-span-2">Estado / Pagamento</span>
           <span />
         </div>
 
@@ -549,6 +549,10 @@ export default function JobsPage() {
             const line = getBusinessLine(job.business_line);
             const team = job.football_teams;
             const playerCount = job.workspace_job_players?.length || 0;
+            const directCost = Number(job.costs || 0);
+            const teamCost = collaboratorCostForJob(job);
+            const totalCost = directCost + teamCost;
+            const margin = Number(job.revenue || 0) - totalCost;
 
             return (
               <div
@@ -582,10 +586,20 @@ export default function JobsPage() {
                     </p>
                   )}
                 </div>
-                <div className="md:col-span-1 md:text-right text-sm font-medium">
-                  {money(job.revenue)}
+                <div className="md:col-span-2 md:text-right">
+                  <p className="text-sm font-medium">
+                    {money(job.revenue)} receita
+                  </p>
+                  <p className="text-xs text-white/35 mt-1">
+                    custo {money(totalCost)} · margem {money(margin)}
+                  </p>
+                  {(directCost > 0 || teamCost > 0) && (
+                    <p className="text-[11px] text-white/20 mt-0.5">
+                      direto {money(directCost)} · equipa {money(teamCost)}
+                    </p>
+                  )}
                 </div>
-                <div className="md:col-span-3 flex flex-wrap items-center gap-2">
+                <div className="md:col-span-2 flex flex-wrap items-center gap-2">
                   <select
                     value={job.status}
                     onChange={(e) =>
@@ -1084,6 +1098,25 @@ function statusForDate(value) {
     String(now.getDate()).padStart(2, "0");
 
   return value >= today ? "scheduled" : "completed";
+}
+
+function collaboratorCostForJob(job) {
+  return (job.collaborator_assignments || [])
+    .filter(
+      (assignment) =>
+        !["declined", "cancelled"].includes(assignment.status)
+    )
+    .reduce(
+      (total, assignment) =>
+        total +
+        Number(assignment.fee_amount || 0) +
+        Number(assignment.travel_reimbursement || 0),
+      0
+    );
+}
+
+function totalCostForJob(job) {
+  return Number(job.costs || 0) + collaboratorCostForJob(job);
 }
 
 function money(value) {
