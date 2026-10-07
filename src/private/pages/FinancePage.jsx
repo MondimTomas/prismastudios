@@ -5,6 +5,7 @@ import { supabase } from "../../lib/supabase";
 
 export default function FinancePage() {
   const [jobs, setJobs] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -12,16 +13,25 @@ export default function FinancePage() {
     setLoading(true);
     setError("");
 
-    const { data, error: loadError } = await supabase
-      .from("workspace_jobs")
-      .select("*")
-      .order("job_date", { ascending: false });
+    const [jobsResult, assignmentsResult] = await Promise.all([
+      supabase
+        .from("workspace_jobs")
+        .select("*")
+        .order("job_date", { ascending: false }),
+      supabase
+        .from("collaborator_assignments")
+        .select("job_id,fee_amount,travel_reimbursement,status"),
+    ]);
+
+    const loadError = jobsResult.error || assignmentsResult.error;
 
     if (loadError) {
       setError(loadError.message);
       setJobs([]);
+      setAssignments([]);
     } else {
-      setJobs(data || []);
+      setJobs(jobsResult.data || []);
+      setAssignments(assignmentsResult.data || []);
     }
 
     setLoading(false);
@@ -35,7 +45,9 @@ export default function FinancePage() {
     const now = new Date();
     const monthJobs = jobs.filter((job) => sameMonth(job.job_date, now));
     const revenue = sum(monthJobs, "revenue");
-    const costs = sum(monthJobs, "costs");
+    const directCosts = sum(monthJobs, "costs");
+    const collaboratorCosts = collaboratorCostForJobs(monthJobs, assignments);
+    const costs = directCosts + collaboratorCosts;
     const receivable = jobs
       .filter((job) => job.payment_status !== "paid")
       .reduce((total, job) => total + Number(job.revenue || 0), 0);
@@ -43,12 +55,16 @@ export default function FinancePage() {
     const byLine = businessLines.map((line) => {
       const lineJobs = jobs.filter((job) => job.business_line === line.id);
       const lineRevenue = sum(lineJobs, "revenue");
-      const lineCosts = sum(lineJobs, "costs");
+      const lineDirectCosts = sum(lineJobs, "costs");
+      const lineCollaboratorCosts = collaboratorCostForJobs(lineJobs, assignments);
+      const lineCosts = lineDirectCosts + lineCollaboratorCosts;
 
       return {
         ...line,
         jobs: lineJobs.length,
         revenue: lineRevenue,
+        directCosts: lineDirectCosts,
+        collaboratorCosts: lineCollaboratorCosts,
         costs: lineCosts,
         result: lineRevenue - lineCosts,
       };
@@ -56,17 +72,19 @@ export default function FinancePage() {
 
     return {
       revenue,
+      directCosts,
+      collaboratorCosts,
       costs,
       result: revenue - costs,
       receivable,
       byLine,
       pending: jobs.filter((job) => job.payment_status !== "paid"),
     };
-  }, [jobs]);
+  }, [jobs, assignments]);
 
   const metrics = [
     ["Receita este mês", money(stats.revenue)],
-    ["Despesas", money(stats.costs)],
+    ["Despesas (incl. equipa)", money(stats.costs)],
     ["Resultado", money(stats.result)],
     ["A receber", money(stats.receivable)],
   ];
@@ -75,6 +93,7 @@ export default function FinancePage() {
     <WorkspaceLayout title="Financeiro" eyebrow="Visão de gestão">
       <p className="text-white/45 max-w-3xl">
         Esta área serve para perceber a rentabilidade do negócio e de cada ramo.
+        As fees e deslocações dos colaboradores entram automaticamente como despesa.
         Não substitui faturação nem contabilidade.
       </p>
 
@@ -114,7 +133,8 @@ export default function FinancePage() {
                     {line.icon} {line.name}
                   </p>
                   <p className="text-xs text-white/25 mt-1">
-                    {loading ? "…" : line.jobs} trabalhos · custos {loading ? "…" : money(line.costs)}
+                    {loading ? "…" : line.jobs} trabalhos · custos diretos {loading ? "…" : money(line.directCosts)}
+                    {" · "}equipa {loading ? "…" : money(line.collaboratorCosts)}
                   </p>
                 </div>
                 <div className="text-right">
@@ -167,6 +187,24 @@ export default function FinancePage() {
       </div>
     </WorkspaceLayout>
   );
+}
+
+function collaboratorCostForJobs(jobs, assignments) {
+  const jobIds = new Set(jobs.map((job) => job.id));
+
+  return assignments
+    .filter(
+      (assignment) =>
+        jobIds.has(assignment.job_id) &&
+        !["declined", "cancelled"].includes(assignment.status)
+    )
+    .reduce(
+      (total, assignment) =>
+        total +
+        Number(assignment.fee_amount || 0) +
+        Number(assignment.travel_reimbursement || 0),
+      0
+    );
 }
 
 function sum(items, field) {
