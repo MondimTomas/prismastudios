@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import TeamLayout from "./TeamLayout";
 import { supabase } from "../lib/supabase";
 
 export default function TeamDashboard() {
   const { workspaceSlug } = useParams();
+  const location = useLocation();
+  const previewMode = new URLSearchParams(location.search).get("preview") === "1";
   const [member, setMember] = useState(null);
   const [profile, setProfile] = useState(null);
   const [assignments, setAssignments] = useState([]);
@@ -20,13 +22,38 @@ export default function TeamDashboard() {
     const user = userData.user;
     if (!user) return;
 
-    const [memberResult, profileResult, assignmentResult, sopResult] = await Promise.all([
-      supabase.from("workspace_members").select("role,status").eq("user_id", user.id).maybeSingle(),
-      supabase.from("collaborator_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+    let memberResult;
+    let targetUserId = user.id;
+
+    if (previewMode) {
+      memberResult = await supabase
+        .from("workspace_members")
+        .select("user_id,role,status,workspace_slug")
+        .eq("workspace_slug", workspaceSlug)
+        .eq("role", "collaborator")
+        .maybeSingle();
+
+      if (memberResult.error || !memberResult.data) {
+        setError(memberResult.error?.message || "Colaborador não encontrado.");
+        setLoading(false);
+        return;
+      }
+
+      targetUserId = memberResult.data.user_id;
+    } else {
+      memberResult = await supabase
+        .from("workspace_members")
+        .select("user_id,role,status,workspace_slug")
+        .eq("user_id", user.id)
+        .maybeSingle();
+    }
+
+    const [profileResult, assignmentResult, sopResult] = await Promise.all([
+      supabase.from("collaborator_profiles").select("*").eq("user_id", targetUserId).maybeSingle(),
       supabase
         .from("collaborator_assignments")
         .select("*, workspace_jobs(id,business_line,client_name,title,service_type,job_date,status,notes,revenue)")
-        .eq("collaborator_user_id", user.id)
+        .eq("collaborator_user_id", targetUserId)
         .order("created_at", { ascending: false }),
       supabase
         .from("workspace_sops")
@@ -43,11 +70,13 @@ export default function TeamDashboard() {
     setAssignments(assignmentResult.data || []);
     setSops(sopResult.data || []);
     setLoading(false);
-  }, []);
+  }, [previewMode, workspaceSlug]);
 
   useEffect(() => { load(); }, [load]);
 
   async function setAssignmentStatus(id, status) {
+    if (previewMode) return;
+
     const previous = assignments;
     setAssignments((current) => current.map((item) => item.id === id ? {...item, status} : item));
 
@@ -75,7 +104,10 @@ export default function TeamDashboard() {
   );
 
   return (
-    <TeamLayout title={profile?.full_name ? "Olá, " + profile.full_name.split(" ")[0] : "Os meus trabalhos"}>
+    <TeamLayout
+      title={profile?.full_name ? "Olá, " + profile.full_name.split(" ")[0] : "Os meus trabalhos"}
+      previewMode={previewMode}
+    >
       {error && <Notice>{error}</Notice>}
 
       {loading ? (
@@ -87,7 +119,12 @@ export default function TeamDashboard() {
           <p className="text-white/45 mt-3 leading-relaxed">
             O teu perfil já está guardado. Assim que for aprovado, esta área mostra os jogos atribuídos, valores e SOPs da Prisma.
           </p>
-          <Link to={"/tomasmondim/" + workspaceSlug + "/perfil"} className="inline-flex mt-5 text-sm text-[#B89A84] hover:text-white">Rever o meu perfil →</Link>
+          <Link
+            to={"/tomasmondim/" + workspaceSlug + "/perfil" + (previewMode ? "?preview=1" : "")}
+            className="inline-flex mt-5 text-sm text-[#B89A84] hover:text-white"
+          >
+            Rever o meu perfil →
+          </Link>
         </div>
       ) : (
         <>
@@ -129,7 +166,7 @@ export default function TeamDashboard() {
 
                       <div className="mt-4 pt-4 border-t border-white/[0.06] flex flex-wrap gap-2">
                         <Status value={assignment.status} />
-                        {assignment.status === "assigned" && (
+                        {!previewMode && assignment.status === "assigned" && (
                           <>
                             <button onClick={() => setAssignmentStatus(assignment.id, "accepted")} className="rounded-lg bg-[#B89A84] px-3 py-2 text-xs font-semibold text-[#151515]">Aceitar</button>
                             <button onClick={() => setAssignmentStatus(assignment.id, "declined")} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white/45 hover:text-white">Não consigo</button>

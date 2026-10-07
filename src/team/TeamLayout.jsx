@@ -7,12 +7,23 @@ function navClass({ isActive }) {
     : "rounded-xl px-4 py-2 text-sm text-white/45 hover:text-white hover:bg-white/[0.04] transition";
 }
 
-export default function TeamLayout({ children, title, eyebrow = "Equipa Prisma" }) {
+export default function TeamLayout({
+  children,
+  title,
+  eyebrow = "Equipa Prisma",
+  previewMode = false,
+}) {
   const navigate = useNavigate();
   const { workspaceSlug } = useParams();
   const base = "/tomasmondim/" + workspaceSlug;
+  const previewQuery = previewMode ? "?preview=1" : "";
 
   async function logout() {
+    if (previewMode) {
+      navigate("/tomasmondim/admin/equipa");
+      return;
+    }
+
     await supabase.auth.signOut();
     navigate("/tomasmondim/login", { replace: true });
   }
@@ -28,14 +39,14 @@ export default function TeamLayout({ children, title, eyebrow = "Equipa Prisma" 
             <h1 className="text-xl font-semibold mt-1">{title}</h1>
           </div>
           <div className="flex items-center gap-2 overflow-x-auto">
-            <NavLink to={base} end className={navClass}>Trabalhos</NavLink>
-            <NavLink to={base + "/perfil"} className={navClass}>Perfil</NavLink>
+            <NavLink to={base + previewQuery} end className={navClass}>Trabalhos</NavLink>
+            <NavLink to={base + "/perfil" + previewQuery} className={navClass}>Perfil</NavLink>
             <button
               type="button"
               onClick={logout}
               className="rounded-xl px-4 py-2 text-sm text-white/35 hover:text-white transition"
             >
-              Sair
+              {previewMode ? "Voltar ao admin" : "Sair"}
             </button>
           </div>
         </div>

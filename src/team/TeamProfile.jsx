@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
+import { useLocation, useParams } from "react-router-dom";
 import TeamLayout from "./TeamLayout";
 import { skillOptions, transportOptions } from "./teamOptions";
 import { supabase } from "../lib/supabase";
 
 export default function TeamProfile() {
+  const { workspaceSlug } = useParams();
+  const location = useLocation();
+  const previewMode = new URLSearchParams(location.search).get("preview") === "1";
   const [form, setForm] = useState(null);
   const [skills, setSkills] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -13,7 +17,27 @@ export default function TeamProfile() {
     async function load() {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) return;
-      const { data } = await supabase.from("collaborator_profiles").select("*").eq("user_id", userData.user.id).maybeSingle();
+
+      let targetUserId = userData.user.id;
+
+      if (previewMode) {
+        const { data: member } = await supabase
+          .from("workspace_members")
+          .select("user_id")
+          .eq("workspace_slug", workspaceSlug)
+          .eq("role", "collaborator")
+          .maybeSingle();
+
+        if (!member) return;
+        targetUserId = member.user_id;
+      }
+
+      const { data } = await supabase
+        .from("collaborator_profiles")
+        .select("*")
+        .eq("user_id", targetUserId)
+        .maybeSingle();
+
       if (!data) return;
       setForm({
         ...data,
@@ -22,7 +46,7 @@ export default function TeamProfile() {
       setSkills(data.skills || []);
     }
     load();
-  }, []);
+  }, [previewMode, workspaceSlug]);
 
   function toggleSkill(id) {
     setSkills((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current,id]);
@@ -34,6 +58,12 @@ export default function TeamProfile() {
 
   async function save(event) {
     event.preventDefault();
+
+    if (previewMode) {
+      setMessage("Pré-visualização: nenhuma alteração foi guardada.");
+      return;
+    }
+
     setSaving(true);
     setMessage("");
 
@@ -60,11 +90,11 @@ export default function TeamProfile() {
   }
 
   if (!form) {
-    return <TeamLayout title="Perfil"><div className="py-20 text-center text-sm text-white/30">A carregar...</div></TeamLayout>;
+    return <TeamLayout title="Perfil" previewMode={previewMode}><div className="py-20 text-center text-sm text-white/30">A carregar...</div></TeamLayout>;
   }
 
   return (
-    <TeamLayout title="O meu perfil" eyebrow="Dados de colaboração">
+    <TeamLayout title="O meu perfil" eyebrow="Dados de colaboração" previewMode={previewMode}>
       <form onSubmit={save} className="space-y-5">
         <Card title="Contacto">
           <div className="grid sm:grid-cols-2 gap-4">
@@ -118,7 +148,12 @@ export default function TeamProfile() {
 
         <div className="flex items-center justify-end gap-4">
           {message && <span className="text-sm text-white/40">{message}</span>}
-          <button disabled={saving} className="rounded-xl bg-[#B89A84] px-5 py-3 text-sm font-semibold text-[#151515] disabled:opacity-50">{saving ? "A guardar..." : "Guardar perfil"}</button>
+          <button
+            disabled={saving || previewMode}
+            className="rounded-xl bg-[#B89A84] px-5 py-3 text-sm font-semibold text-[#151515] disabled:opacity-50"
+          >
+            {previewMode ? "Pré-visualização" : saving ? "A guardar..." : "Guardar perfil"}
+          </button>
         </div>
       </form>
     </TeamLayout>

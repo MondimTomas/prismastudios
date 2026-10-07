@@ -9,6 +9,7 @@ export default function ProtectedRoute({
 }) {
   const location = useLocation();
   const { workspaceSlug } = useParams();
+  const previewMode = new URLSearchParams(location.search).get("preview") === "1";
   const [session, setSession] = useState(null);
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -75,7 +76,12 @@ export default function ProtectedRoute({
     return <Navigate to={loginPath} replace />;
   }
 
-  if (requiredRole && member.role !== requiredRole) {
+  const ownerPreview =
+    requiredRole === "collaborator" &&
+    member.role === "owner" &&
+    previewMode;
+
+  if (requiredRole && member.role !== requiredRole && !ownerPreview) {
     if (member.role === "owner") {
       return <Navigate to="/tomasmondim/admin" replace />;
     }
@@ -90,6 +96,7 @@ export default function ProtectedRoute({
   if (
     requiredRole === "collaborator" &&
     workspaceSlug &&
+    member.role === "collaborator" &&
     member.workspace_slug !== workspaceSlug
   ) {
     return <Navigate to={"/tomasmondim/" + member.workspace_slug} replace />;

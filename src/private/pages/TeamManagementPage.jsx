@@ -153,7 +153,28 @@ export default function TeamManagementPage() {
       <Section eyebrow="Rede" title="Colaboradores ativos">
         {activePeople.length === 0 ? <Empty>Ainda não tens colaboradores aprovados.</Empty> : (
           <div className="grid xl:grid-cols-2 gap-4">
-            {activePeople.map((person)=><PersonCard key={person.user_id} person={person} action={<button onClick={()=>setMemberStatus(person.user_id,"inactive")} className="text-xs text-white/30 hover:text-red-300">Desativar</button>} />)}
+            {activePeople.map((person)=><PersonCard
+              key={person.user_id}
+              person={person}
+              action={
+                <div className="flex items-center gap-3">
+                  <a
+                    href={"/tomasmondim/" + person.workspace_slug + "?preview=1"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-lg border border-[#B89A84]/30 px-3 py-2 text-xs text-[#D8C3B4] hover:bg-[#B89A84]/10 transition"
+                  >
+                    Ver como colaborador
+                  </a>
+                  <button
+                    onClick={()=>setMemberStatus(person.user_id,"inactive")}
+                    className="text-xs text-white/30 hover:text-red-300"
+                  >
+                    Desativar
+                  </button>
+                </div>
+              }
+            />)}
           </div>
         )}
       </Section>
