@@ -73,7 +73,7 @@ export default function FootballTeamPage() {
         .order("name", { ascending: true }),
       supabase
         .from("workspace_jobs")
-        .select("id,title,job_date,revenue,costs,payment_status,status")
+        .select("id,title,job_date,revenue,costs,payment_status,status,collaborator_assignments(fee_amount,travel_reimbursement,status)")
         .eq("team_id", teamId)
         .order("job_date", { ascending: false }),
     ]);
@@ -174,7 +174,7 @@ export default function FootballTeamPage() {
       0
     );
     const costs = jobs.reduce(
-      (total, job) => total + Number(job.costs || 0),
+      (total, job) => total + totalCostForJob(job),
       0
     );
     const paidRevenue = jobs
@@ -1103,12 +1103,22 @@ export default function FootballTeamPage() {
                         {paymentLabel(job.payment_status)}
                       </p>
                     </div>
-                    <span className="text-sm text-white/45">
-                      custos {money(job.costs)}
-                    </span>
-                    <span className="text-sm font-medium">
-                      {money(job.revenue)}
-                    </span>
+                    <div className="text-right">
+                      <p className="text-sm text-white/45">
+                        custos {money(totalCostForJob(job))}
+                      </p>
+                      <p className="text-[11px] text-white/20 mt-0.5">
+                        direto {money(job.costs)} · equipa {money(collaboratorCostForJob(job))}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">
+                        {money(job.revenue)}
+                      </p>
+                      <p className="text-[11px] text-white/30 mt-0.5">
+                        margem {money(Number(job.revenue || 0) - totalCostForJob(job))}
+                      </p>
+                    </div>
                   </div>
                 ))
               )}
@@ -1156,6 +1166,25 @@ function normalizePlayerName(value) {
 function clean(value) {
   const trimmed = String(value || "").trim();
   return trimmed || null;
+}
+
+function collaboratorCostForJob(job) {
+  return (job.collaborator_assignments || [])
+    .filter(
+      (assignment) =>
+        !["declined", "cancelled"].includes(assignment.status)
+    )
+    .reduce(
+      (total, assignment) =>
+        total +
+        Number(assignment.fee_amount || 0) +
+        Number(assignment.travel_reimbursement || 0),
+      0
+    );
+}
+
+function totalCostForJob(job) {
+  return Number(job.costs || 0) + collaboratorCostForJob(job);
 }
 
 function money(value) {
