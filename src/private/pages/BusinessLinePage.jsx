@@ -10,6 +10,7 @@ export default function BusinessLinePage() {
   const line = getBusinessLine(lineId);
   const [jobs, setJobs] = useState([]);
   const [footballTeams, setFootballTeams] = useState([]);
+  const [recurringContracts, setRecurringContracts] = useState([]);
   const [squadSyncsThisMonth, setSquadSyncsThisMonth] = useState(0);
   const [loadingData, setLoadingData] = useState(true);
   const [dataError, setDataError] = useState("");
@@ -26,13 +27,28 @@ export default function BusinessLinePage() {
       .eq("business_line", line.id)
       .order("job_date", { ascending: false });
 
-    const jobsResult = await jobsQuery;
+    const [jobsResult, recurringResult] = await Promise.all([
+      jobsQuery,
+      supabase
+        .from("workspace_recurring_revenue")
+        .select("*")
+        .eq("business_line", line.id)
+        .eq("active", true)
+        .order("start_date", { ascending: true }),
+    ]);
 
     if (jobsResult.error) {
       setDataError(jobsResult.error.message);
       setJobs([]);
     } else {
       setJobs(jobsResult.data || []);
+    }
+
+    if (recurringResult.error) {
+      setDataError((current) => current || recurringResult.error.message);
+      setRecurringContracts([]);
+    } else {
+      setRecurringContracts(recurringResult.data || []);
     }
 
     if (line.id === "futebol") {
@@ -119,6 +135,7 @@ export default function BusinessLinePage() {
           line={line}
           jobs={jobs}
           footballTeams={footballTeams}
+          recurringContracts={recurringContracts}
           squadSyncsThisMonth={squadSyncsThisMonth}
           loading={loadingData}
         />
@@ -130,7 +147,13 @@ export default function BusinessLinePage() {
       {activeSection === "teams" && line.id === "futebol" && (
         <Teams teams={footballTeams} jobs={jobs} loading={loadingData} />
       )}
-      {activeSection === "recurring" && <RecurringClients line={line} />}
+      {activeSection === "recurring" && (
+        <RecurringClients
+          line={line}
+          contracts={recurringContracts}
+          loading={loadingData}
+        />
+      )}
       {activeSection === "active" && <ActiveClients line={line} />}
       {activeSection === "lost" && <LostClients />}
       {activeSection === "calendar" && <LineCalendar line={line} />}
@@ -143,6 +166,7 @@ function Overview({
   line,
   jobs,
   footballTeams,
+  recurringContracts,
   squadSyncsThisMonth,
   loading,
 }) {
@@ -159,7 +183,29 @@ function Overview({
           { label: "Receita este mês", value: money(stats.thisMonthRevenue) },
           { label: "Equipas ativas", value: String(stats.activeTeams) },
         ]
-      : line.metrics;
+      : line.id === "conteudo"
+        ? [
+            { label: "Leads abertas", value: "0" },
+            { label: "Clientes mensais", value: String(recurringContracts.length) },
+            {
+              label: "MRR",
+              value: money(
+                recurringContracts.reduce(
+                  (total, contract) => total + Number(contract.amount || 0),
+                  0
+                )
+              ),
+            },
+            {
+              label: "Projetos ativos",
+              value: String(
+                jobs.filter((job) =>
+                  ["scheduled", "in_progress"].includes(job.status)
+                ).length
+              ),
+            },
+          ]
+        : line.metrics;
 
   return (
     <>
@@ -462,19 +508,79 @@ function MiniValue({ label, value }) {
   );
 }
 
-function RecurringClients() {
+function RecurringClients({ contracts = [], loading }) {
+  const mrr = contracts.reduce(
+    (total, contract) => total + Number(contract.amount || 0),
+    0
+  );
+
   return (
     <section className="rounded-2xl border border-white/[0.08] bg-white/[0.025]">
       <PanelHeader eyebrow="Recorrência" title="Clientes mensais" />
       <div className="p-5">
         <div className="grid sm:grid-cols-3 gap-3 mb-5">
-          <MiniMetric label="Clientes ativos" value="0" />
-          <MiniMetric label="MRR" value="0 €" />
-          <MiniMetric label="Próximas renovações" value="0" />
+          <MiniMetric
+            label="Clientes ativos"
+            value={loading ? "…" : String(contracts.length)}
+          />
+          <MiniMetric
+            label="MRR"
+            value={loading ? "…" : money(mrr)}
+          />
+          <MiniMetric
+            label="Próxima cobrança"
+            value={
+              loading
+                ? "…"
+                : contracts.length
+                  ? formatShortDate(nextBillingDate(contracts))
+                  : "—"
+            }
+          />
         </div>
-        <EmptyState compact>
-          Aqui ficam as avenças de conteúdo, com entregas previstas, próxima captação e renovação.
-        </EmptyState>
+
+        {loading ? (
+          <div className="rounded-xl border border-dashed border-white/10 px-5 py-10 text-center text-sm text-white/30">
+            A carregar clientes mensais...
+          </div>
+        ) : contracts.length === 0 ? (
+          <EmptyState compact>
+            Ainda não existem avenças mensais neste ramo.
+          </EmptyState>
+        ) : (
+          <div className="space-y-3">
+            {contracts.map((contract) => (
+              <div
+                key={contract.id}
+                className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-white/75">
+                      {contract.client_name}
+                    </p>
+                    <p className="text-xs text-white/30 mt-1">
+                      {contract.service_type || contract.title}
+                    </p>
+                    <p className="text-xs text-white/25 mt-2">
+                      Desde {formatDate(contract.start_date)} · cobrança dia{" "}
+                      {contract.billing_day}
+                    </p>
+                  </div>
+
+                  <div className="sm:text-right shrink-0">
+                    <p className="text-lg font-semibold">
+                      {money(contract.amount)}/mês
+                    </p>
+                    <p className="text-xs text-[#B89A84] mt-1">
+                      Próxima: {formatDate(nextBillingDateForContract(contract))}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -693,6 +799,35 @@ function footballSeasonForDate(date) {
   }
 
   return year - 1 + "/" + String(year).slice(-2);
+}
+
+function nextBillingDate(contracts) {
+  return contracts
+    .map(nextBillingDateForContract)
+    .sort()[0];
+}
+
+function nextBillingDateForContract(contract) {
+  const now = new Date();
+  const billingDay = Number(contract.billing_day || 15);
+  let year = now.getFullYear();
+  let month = now.getMonth();
+
+  if (now.getDate() > billingDay) {
+    month += 1;
+    if (month > 11) {
+      month = 0;
+      year += 1;
+    }
+  }
+
+  return (
+    year +
+    "-" +
+    String(month + 1).padStart(2, "0") +
+    "-" +
+    String(billingDay).padStart(2, "0")
+  );
 }
 
 function money(value) {
