@@ -36,6 +36,7 @@ import BusinessLinePage from "./private/pages/BusinessLinePage";
 import ClientsPage from "./private/pages/ClientsPage";
 import TasksPage from "./private/pages/TasksPage";
 import FinancePage from "./private/pages/FinancePage";
+import PerformancePage from "./private/pages/PerformancePage";
 import PlaybookPage from "./private/pages/PlaybookPage";
 import CalendarPage from "./private/pages/CalendarPage";
 import JobsPage from "./private/pages/JobsPage";
@@ -152,6 +153,10 @@ export default function App() {
         element={<PrivatePage><FinancePage /></PrivatePage>}
       />
       <Route
+        path="/tomasmondim/admin/performance"
+        element={<PrivatePage><PerformancePage /></PrivatePage>}
+      />
+      <Route
         path="/tomasmondim/admin/playbook"
         element={<PrivatePage><PlaybookPage /></PrivatePage>}
       />
@@ -178,6 +183,7 @@ export default function App() {
       <Route path="/tomasmondim/tarefas" element={<Navigate to="/tomasmondim/admin/tarefas" replace />} />
       <Route path="/tomasmondim/calendario" element={<Navigate to="/tomasmondim/admin/calendario" replace />} />
       <Route path="/tomasmondim/financeiro" element={<Navigate to="/tomasmondim/admin/financeiro" replace />} />
+      <Route path="/tomasmondim/performance" element={<Navigate to="/tomasmondim/admin/performance" replace />} />
       <Route path="/tomasmondim/playbook" element={<Navigate to="/tomasmondim/admin/playbook" replace />} />
       <Route path="/tomasmondim/equipa" element={<Navigate to="/tomasmondim/admin/equipa" replace />} />
 

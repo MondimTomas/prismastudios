@@ -75,6 +75,9 @@ export default function WorkspaceLayout({ children, title, eyebrow, actions }) {
           <NavLink to={base + "/financeiro"} className={navClass}>
             <span>€</span><span>Financeiro</span>
           </NavLink>
+          <NavLink to={base + "/performance"} className={navClass}>
+            <span>↗</span><span>Performance</span>
+          </NavLink>
           <NavLink to={base + "/playbook"} className={navClass}>
             <span>▤</span><span>Playbook</span>
           </NavLink>
@@ -126,6 +129,7 @@ export default function WorkspaceLayout({ children, title, eyebrow, actions }) {
               <NavLink to={base + "/tarefas"} className={navClass}>Tarefas</NavLink>
               <NavLink to={base + "/calendario"} className={navClass}>Calendário</NavLink>
               <NavLink to={base + "/financeiro"} className={navClass}>Financeiro</NavLink>
+              <NavLink to={base + "/performance"} className={navClass}>Performance</NavLink>
               <NavLink to={base + "/playbook"} className={navClass}>Playbook</NavLink>
             </div>
           </div>
