@@ -34,6 +34,7 @@ export default function JobsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [lineFilter, setLineFilter] = useState(searchParams.get("ramo") || "all");
+  const [paymentFilter, setPaymentFilter] = useState("all");
   const [form, setForm] = useState({
     ...emptyForm,
     business_line: searchParams.get("ramo") || "futebol",
@@ -60,6 +61,9 @@ export default function JobsPage() {
       .order("job_date", { ascending: false });
 
     if (lineFilter !== "all") query = query.eq("business_line", lineFilter);
+    if (paymentFilter !== "all") {
+      query = query.eq("payment_status", paymentFilter);
+    }
 
     const { data, error: loadError } = await query;
 
@@ -71,7 +75,7 @@ export default function JobsPage() {
     }
 
     setLoading(false);
-  }, [lineFilter]);
+  }, [lineFilter, paymentFilter]);
 
   const loadTeams = useCallback(async () => {
     const { data, error: loadError } = await supabase
@@ -484,19 +488,48 @@ export default function JobsPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 mt-7">
-        <FilterButton active={lineFilter === "all"} onClick={() => setLineFilter("all")}>
-          Todos
-        </FilterButton>
-        {businessLines.map((line) => (
-          <FilterButton
-            key={line.id}
-            active={lineFilter === line.id}
-            onClick={() => setLineFilter(line.id)}
-          >
-            {line.icon} {line.name}
+      <div className="mt-7 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-[10px] uppercase tracking-[0.16em] text-white/25">
+            Ramo
+          </span>
+          <FilterButton active={lineFilter === "all"} onClick={() => setLineFilter("all")}>
+            Todos
           </FilterButton>
-        ))}
+          {businessLines.map((line) => (
+            <FilterButton
+              key={line.id}
+              active={lineFilter === line.id}
+              onClick={() => setLineFilter(line.id)}
+            >
+              {line.icon} {line.name}
+            </FilterButton>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-[10px] uppercase tracking-[0.16em] text-white/25">
+            Pagamento
+          </span>
+          <FilterButton
+            active={paymentFilter === "all"}
+            onClick={() => setPaymentFilter("all")}
+          >
+            Todos
+          </FilterButton>
+          <FilterButton
+            active={paymentFilter === "unpaid"}
+            onClick={() => setPaymentFilter("unpaid")}
+          >
+            Por pagar
+          </FilterButton>
+          <FilterButton
+            active={paymentFilter === "paid"}
+            onClick={() => setPaymentFilter("paid")}
+          >
+            Pago
+          </FilterButton>
+        </div>
       </div>
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mt-7">
@@ -535,14 +568,20 @@ export default function JobsPage() {
           <div className="px-5 py-16 text-center text-sm text-white/30">A carregar...</div>
         ) : jobs.length === 0 ? (
           <div className="px-5 py-16 text-center">
-            <p className="text-sm text-white/35">Ainda não tens trabalhos de 2026 registados.</p>
-            <button
-              type="button"
-              onClick={openForm}
-              className="mt-4 text-sm text-[#B89A84] hover:text-white transition"
-            >
-              Adicionar o primeiro trabalho →
-            </button>
+            <p className="text-sm text-white/35">
+              {lineFilter !== "all" || paymentFilter !== "all"
+                ? "Nenhum trabalho corresponde aos filtros selecionados."
+                : "Ainda não tens trabalhos de 2026 registados."}
+            </p>
+            {lineFilter === "all" && paymentFilter === "all" && (
+              <button
+                type="button"
+                onClick={openForm}
+                className="mt-4 text-sm text-[#B89A84] hover:text-white transition"
+              >
+                Adicionar o primeiro trabalho →
+              </button>
+            )}
           </div>
         ) : (
           jobs.map((job) => {
