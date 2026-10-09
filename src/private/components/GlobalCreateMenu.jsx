@@ -21,7 +21,13 @@ export default function GlobalCreateMenu() {
   }, []);
 
   const items = [
-    { label: "Lead", hint: line ? `em ${line.name}` : "escolher ramo" },
+    {
+      label: "Lead",
+      hint: line ? `em ${line.name}` : "abrir um ramo primeiro",
+      action: line
+        ? () => navigate(`/tomasmondim/admin/ramo/${line.id}/leads?novo=1`)
+        : undefined,
+    },
     { label: "Cliente", hint: "global" },
     {
       label: "Trabalho",
@@ -72,7 +78,7 @@ export default function GlobalCreateMenu() {
           ))}
 
           <div className="mx-3 mt-2 border-t border-white/[0.06] pt-3 pb-2 text-[11px] leading-relaxed text-white/25">
-            O menu já define a estrutura. A gravação dos dados é ativada na próxima fase com o Supabase.
+            Leads e trabalhos já ficam gravados no workspace. Os restantes atalhos serão ativados à medida que os módulos forem ligados.
           </div>
         </div>
       )}
