@@ -17,7 +17,7 @@ export default function CalendarPage() {
 
     const { data, error: loadError } = await supabase
       .from("workspace_jobs")
-      .select("*, football_teams(id,name,season)")
+      .select("*, football_teams(id,name,season), collaborator_assignments(id,status,role,collaborator_user_id)")
       .order("job_date", { ascending: true });
 
     if (loadError) {
@@ -73,7 +73,14 @@ export default function CalendarPage() {
             Sessões de futebol, gravações, eventos, reuniões e entregas num único calendário.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-white/35">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3 text-xs text-white/35">
+            <LegendDot className="bg-emerald-400" label="Tu na produção" />
+            <LegendDot className="bg-sky-400" label="Colaborador confirmado" />
+            <LegendDot className="bg-red-400" label="Por confirmar" />
+          </div>
+
+          <div className="flex items-center gap-2 text-sm text-white/35">
           <button
             type="button"
             onClick={() => moveMonth(-1)}
@@ -94,6 +101,7 @@ export default function CalendarPage() {
           >
             →
           </button>
+          </div>
         </div>
       </div>
 
@@ -132,11 +140,22 @@ export default function CalendarPage() {
                 <div className="mt-2 space-y-1">
                   {dayJobs.slice(0, 3).map((job) => {
                     const line = businessLines.find((item) => item.id === job.business_line);
+                    const tone = calendarTone(job);
+
                     return (
                       <div
                         key={job.id}
-                        title={(job.football_teams?.name || job.client_name) + " — " + job.title}
-                        className="rounded-md border border-white/[0.07] bg-white/[0.04] px-2 py-1 text-[10px] text-white/55 truncate"
+                        title={
+                          (job.football_teams?.name || job.client_name) +
+                          " — " +
+                          job.title +
+                          " — " +
+                          tone.label
+                        }
+                        className={
+                          "rounded-md border px-2 py-1 text-[10px] truncate " +
+                          tone.className
+                        }
                       >
                         {line?.icon} {job.football_teams?.name || job.client_name}
                       </div>
@@ -167,26 +186,80 @@ export default function CalendarPage() {
           </div>
         ) : (
           <div className="mt-4 space-y-2">
-            {upcoming.map((job) => (
-              <div
-                key={job.id}
-                className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3"
-              >
-                <div>
-                  <p className="text-sm text-white/65">
-                    {job.football_teams?.name || job.client_name}
-                  </p>
-                  <p className="text-xs text-white/25 mt-1">{job.title}</p>
+            {upcoming.map((job) => {
+              const tone = calendarTone(job);
+
+              return (
+                <div
+                  key={job.id}
+                  className={
+                    "flex items-center justify-between gap-4 rounded-xl border px-4 py-3 " +
+                    tone.className
+                  }
+                >
+                  <div>
+                    <p className="text-sm font-medium">
+                      {job.football_teams?.name || job.client_name}
+                    </p>
+                    <p className="text-xs opacity-60 mt-1">
+                      {job.title} · {tone.label}
+                    </p>
+                  </div>
+                  <span className="text-xs opacity-70 shrink-0">
+                    {formatDate(job.job_date)}
+                  </span>
                 </div>
-                <span className="text-xs text-white/35 shrink-0">
-                  {formatDate(job.job_date)}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
     </WorkspaceLayout>
+  );
+}
+
+function calendarTone(job) {
+  const assignments = (job.collaborator_assignments || []).filter(
+    (assignment) => assignment.status !== "cancelled"
+  );
+
+  const hasPendingAssignment = assignments.some((assignment) =>
+    ["assigned", "declined"].includes(assignment.status)
+  );
+
+  if (hasPendingAssignment) {
+    return {
+      label: "Por confirmar",
+      className:
+        "border-red-400/30 bg-red-400/[0.12] text-red-100",
+    };
+  }
+
+  const hasConfirmedCollaborator = assignments.some((assignment) =>
+    ["accepted", "completed"].includes(assignment.status)
+  );
+
+  if (hasConfirmedCollaborator) {
+    return {
+      label: "Produção por colaborador",
+      className:
+        "border-sky-400/30 bg-sky-400/[0.12] text-sky-100",
+    };
+  }
+
+  return {
+    label: "Tu na produção",
+    className:
+      "border-emerald-400/30 bg-emerald-400/[0.12] text-emerald-100",
+  };
+}
+
+function LegendDot({ className, label }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className={"h-2 w-2 rounded-full " + className} />
+      {label}
+    </span>
   );
 }
 
