@@ -9,6 +9,9 @@ export default function TeamLogin() {
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState("");
+  const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -33,14 +36,28 @@ export default function TeamLogin() {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setNeedsEmailConfirmation(false);
+    setResendMessage("");
+
+    const normalizedEmail = email.trim();
 
     const { data, error: loginError } = await supabase.auth.signInWithPassword({
-      email,
+      email: normalizedEmail,
       password,
     });
 
     if (loginError) {
       setLoading(false);
+
+      if (
+        loginError.code === "email_not_confirmed" ||
+        /email not confirmed/i.test(loginError.message || "")
+      ) {
+        setNeedsEmailConfirmation(true);
+        setError("Ainda tens de confirmar o teu email antes de entrares.");
+        return;
+      }
+
       setError("Email ou palavra-passe incorretos.");
       return;
     }
@@ -67,6 +84,38 @@ export default function TeamLogin() {
     navigate("/equipa", { replace: true });
   }
 
+  async function resendConfirmation() {
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail) {
+      setError("Escreve o teu email para reenviar a confirmação.");
+      return;
+    }
+
+    setResending(true);
+    setError("");
+    setResendMessage("");
+
+    const { error: resendError } = await supabase.auth.resend({
+      type: "signup",
+      email: normalizedEmail,
+    });
+
+    setResending(false);
+
+    if (resendError) {
+      setError(
+        resendError.status === 429
+          ? "Já foi enviado um email há pouco. Aguarda um momento e tenta novamente."
+          : "Não foi possível reenviar o email de confirmação. Tenta novamente."
+      );
+      return;
+    }
+
+    setNeedsEmailConfirmation(true);
+    setResendMessage("Novo email de confirmação enviado. Verifica também o spam.");
+  }
+
   if (checking) {
     return <div className="min-h-screen bg-[#151515] text-white flex items-center justify-center text-sm text-white/40">A validar sessão...</div>;
   }
@@ -80,12 +129,41 @@ export default function TeamLogin() {
 
         <form onSubmit={submit} className="mt-9 space-y-4">
           <Field label="Email">
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} autoComplete="email" />
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setNeedsEmailConfirmation(false);
+                setResendMessage("");
+              }}
+              className={inputClass}
+              autoComplete="email"
+            />
           </Field>
           <Field label="Palavra-passe">
             <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass} autoComplete="current-password" />
           </Field>
           {error && <p className="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error}</p>}
+
+          {needsEmailConfirmation && (
+            <button
+              type="button"
+              onClick={resendConfirmation}
+              disabled={resending}
+              className="w-full rounded-xl border border-[#B89A84]/30 bg-[#B89A84]/[0.06] py-3 text-sm font-medium text-[#D8C3B4] hover:bg-[#B89A84]/[0.1] disabled:opacity-50 transition"
+            >
+              {resending ? "A reenviar..." : "Reenviar email de confirmação"}
+            </button>
+          )}
+
+          {resendMessage && (
+            <p className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+              {resendMessage}
+            </p>
+          )}
+
           <button disabled={loading} className="w-full rounded-xl bg-[#B89A84] py-3.5 font-semibold text-[#151515] disabled:opacity-50">
             {loading ? "A entrar..." : "Entrar"}
           </button>
