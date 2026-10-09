@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import WorkspaceLayout from "../components/WorkspaceLayout";
 import BusinessLineTabs from "../components/BusinessLineTabs";
 import { getBusinessLine } from "../workspaceData";
@@ -11,6 +11,8 @@ export default function BusinessLinePage() {
   const [jobs, setJobs] = useState([]);
   const [footballTeams, setFootballTeams] = useState([]);
   const [recurringContracts, setRecurringContracts] = useState([]);
+  const [leads, setLeads] = useState([]);
+  const [sops, setSops] = useState([]);
   const [squadSyncsThisMonth, setSquadSyncsThisMonth] = useState(0);
   const [loadingData, setLoadingData] = useState(true);
   const [dataError, setDataError] = useState("");
@@ -27,14 +29,23 @@ export default function BusinessLinePage() {
       .eq("business_line", line.id)
       .order("job_date", { ascending: false });
 
-    const [jobsResult, recurringResult] = await Promise.all([
+    const [jobsResult, recurringResult, leadsResult, sopsResult] = await Promise.all([
       jobsQuery,
       supabase
         .from("workspace_recurring_revenue")
         .select("*")
         .eq("business_line", line.id)
-        .eq("active", true)
         .order("start_date", { ascending: true }),
+      supabase
+        .from("workspace_leads")
+        .select("*")
+        .eq("business_line", line.id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("workspace_sops")
+        .select("*")
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false }),
     ]);
 
     if (jobsResult.error) {
@@ -49,6 +60,24 @@ export default function BusinessLinePage() {
       setRecurringContracts([]);
     } else {
       setRecurringContracts(recurringResult.data || []);
+    }
+
+    if (leadsResult.error) {
+      setDataError((current) => current || leadsResult.error.message);
+      setLeads([]);
+    } else {
+      setLeads(leadsResult.data || []);
+    }
+
+    if (sopsResult.error) {
+      setDataError((current) => current || sopsResult.error.message);
+      setSops([]);
+    } else {
+      setSops(
+        (sopsResult.data || []).filter(
+          (sop) => !sop.business_line || sop.business_line === line.id
+        )
+      );
     }
 
     if (line.id === "futebol") {
@@ -136,11 +165,19 @@ export default function BusinessLinePage() {
           jobs={jobs}
           footballTeams={footballTeams}
           recurringContracts={recurringContracts}
+          leads={leads}
           squadSyncsThisMonth={squadSyncsThisMonth}
           loading={loadingData}
         />
       )}
-      {activeSection === "leads" && <Leads line={line} jobs={jobs} />}
+      {activeSection === "leads" && (
+        <Leads
+          line={line}
+          leads={leads}
+          loading={loadingData}
+          onRefresh={loadLineData}
+        />
+      )}
       {activeSection === "work" && (
         <Work line={line} jobs={jobs} loading={loadingData} />
       )}
@@ -150,14 +187,32 @@ export default function BusinessLinePage() {
       {activeSection === "recurring" && (
         <RecurringClients
           line={line}
-          contracts={recurringContracts}
+          contracts={recurringContracts.filter((contract) => contract.active)}
           loading={loadingData}
         />
       )}
-      {activeSection === "active" && <ActiveClients line={line} />}
-      {activeSection === "lost" && <LostClients />}
-      {activeSection === "calendar" && <LineCalendar line={line} />}
-      {activeSection === "sops" && <Sops line={line} />}
+      {activeSection === "active" && (
+        <ActiveClients
+          line={line}
+          contracts={recurringContracts.filter((contract) => contract.active)}
+          jobs={jobs}
+          loading={loadingData}
+        />
+      )}
+      {activeSection === "lost" && (
+        <LostClients
+          contracts={recurringContracts.filter((contract) => !contract.active)}
+          jobs={jobs}
+          loading={loadingData}
+          onRefresh={loadLineData}
+        />
+      )}
+      {activeSection === "calendar" && (
+        <LineCalendar line={line} jobs={jobs} loading={loadingData} />
+      )}
+      {activeSection === "sops" && (
+        <Sops line={line} sops={sops} loading={loadingData} />
+      )}
     </WorkspaceLayout>
   );
 }
@@ -167,6 +222,7 @@ function Overview({
   jobs,
   footballTeams,
   recurringContracts,
+  leads,
   squadSyncsThisMonth,
   loading,
 }) {
@@ -175,22 +231,32 @@ function Overview({
     [line, jobs, footballTeams]
   );
 
+  const activeRecurring = recurringContracts.filter((contract) => contract.active);
+  const inactiveRecurring = recurringContracts.filter((contract) => !contract.active);
+  const openLeads = leads.filter(
+    (lead) => lead.stage !== line.pipeline[line.pipeline.length - 1]
+  );
+  const pipelineValue = openLeads.reduce(
+    (total, lead) => total + Number(lead.estimated_value || 0),
+    0
+  );
+
   const metrics =
     line.id === "futebol"
       ? [
-          { label: "Leads abertas", value: "0" },
+          { label: "Leads abertas", value: String(openLeads.length) },
           { label: "Sessões este mês", value: String(stats.thisMonthJobs.length) },
           { label: "Receita este mês", value: money(stats.thisMonthRevenue) },
           { label: "Equipas ativas", value: String(stats.activeTeams) },
         ]
       : line.id === "conteudo"
         ? [
-            { label: "Leads abertas", value: "0" },
-            { label: "Clientes mensais", value: String(recurringContracts.length) },
+            { label: "Leads abertas", value: String(openLeads.length) },
+            { label: "Clientes mensais", value: String(activeRecurring.length) },
             {
               label: "MRR",
               value: money(
-                recurringContracts.reduce(
+                activeRecurring.reduce(
                   (total, contract) => total + Number(contract.amount || 0),
                   0
                 )
@@ -205,7 +271,30 @@ function Overview({
               ),
             },
           ]
-        : line.metrics;
+        : line.id === "redes-sociais"
+          ? [
+              { label: "Leads abertas", value: String(openLeads.length) },
+              { label: "Clientes ativos", value: String(activeRecurring.length) },
+              {
+                label: "MRR",
+                value: money(
+                  activeRecurring.reduce(
+                    (total, contract) => total + Number(contract.amount || 0),
+                    0
+                  )
+                ),
+              },
+              { label: "Clientes perdidos", value: String(inactiveRecurring.length) },
+            ]
+          : [
+              { label: "Pedidos abertos", value: String(openLeads.length) },
+              {
+                label: "Eventos confirmados",
+                value: String(jobs.filter((job) => job.status === "scheduled").length),
+              },
+              { label: "Pipeline", value: money(pipelineValue) },
+              { label: "Eventos este mês", value: String(stats.thisMonthJobs.length) },
+            ];
 
   return (
     <>
@@ -214,7 +303,7 @@ function Overview({
           <Metric
             key={metric.label}
             {...metric}
-            value={loading && line.id === "futebol" ? "…" : metric.value}
+            value={loading ? "…" : metric.value}
           />
         ))}
       </div>
@@ -228,7 +317,7 @@ function Overview({
 
       <section className="mt-10">
         <SectionTitle eyebrow="Pipeline" title="Processo comercial" />
-        <Pipeline line={line} jobs={jobs} />
+        <Pipeline line={line} leads={leads} />
       </section>
 
       <section className="grid xl:grid-cols-3 gap-5 mt-10">
@@ -308,22 +397,253 @@ function BrowserlessUsageCard({ syncsThisMonth, loading }) {
   );
 }
 
-function Leads({ line, jobs }) {
+function Leads({ line, leads = [], loading, onRefresh }) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showForm, setShowForm] = useState(searchParams.get("novo") === "1");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState(() => emptyLeadForm(line));
+
+  async function createLead(event) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+
+    const { data: userData } = await supabase.auth.getUser();
+    const { error: insertError } = await supabase.from("workspace_leads").insert({
+      business_line: line.id,
+      name: form.name.trim(),
+      contact_name: form.contact_name.trim() || null,
+      contact_email: form.contact_email.trim() || null,
+      contact_phone: form.contact_phone.trim() || null,
+      stage: form.stage,
+      estimated_value: Number(form.estimated_value || 0),
+      next_action: form.next_action.trim() || null,
+      next_action_date: form.next_action_date || null,
+      notes: form.notes.trim() || null,
+      created_by: userData.user?.id || null,
+    });
+
+    setSaving(false);
+
+    if (insertError) {
+      setError(insertError.message);
+      return;
+    }
+
+    setForm(emptyLeadForm(line));
+    setShowForm(false);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("novo");
+    setSearchParams(nextParams, { replace: true });
+    await onRefresh();
+  }
+
+  async function updateStage(id, stage) {
+    setError("");
+    const { error: updateError } = await supabase
+      .from("workspace_leads")
+      .update({ stage, updated_at: new Date().toISOString() })
+      .eq("id", id);
+
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+
+    await onRefresh();
+  }
+
+  async function deleteLead(id) {
+    if (!window.confirm("Apagar esta lead?")) return;
+
+    const { error: deleteError } = await supabase
+      .from("workspace_leads")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+
+    await onRefresh();
+  }
+
   return (
     <>
-      <SectionTitle eyebrow="Leads" title="Pipeline comercial" />
-      <Pipeline line={line} jobs={jobs} />
+      <div className="flex items-end justify-between gap-4">
+        <SectionTitle eyebrow="Leads" title="Pipeline comercial" />
+        <button
+          type="button"
+          onClick={() => setShowForm((value) => !value)}
+          className="mb-4 rounded-xl bg-[#B89A84] px-4 py-2 text-sm font-semibold text-[#151515] hover:brightness-110 transition"
+        >
+          {showForm ? "Fechar" : "+ Lead"}
+        </button>
+      </div>
+
+      <Pipeline line={line} leads={leads} />
+
+      {error && (
+        <div className="mt-5 rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
+          {error}
+        </div>
+      )}
+
+      {showForm && (
+        <form
+          onSubmit={createLead}
+          className="mt-6 rounded-2xl border border-[#B89A84]/20 bg-[#B89A84]/[0.04] p-5"
+        >
+          <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <Field label={line.id === "futebol" ? "Equipa / lead" : "Cliente / empresa"}>
+              <input
+                required
+                value={form.name}
+                onChange={(event) => setForm({ ...form, name: event.target.value })}
+                className={formInputClass}
+              />
+            </Field>
+            <Field label="Contacto">
+              <input
+                value={form.contact_name}
+                onChange={(event) => setForm({ ...form, contact_name: event.target.value })}
+                className={formInputClass}
+              />
+            </Field>
+            <Field label="Email">
+              <input
+                type="email"
+                value={form.contact_email}
+                onChange={(event) => setForm({ ...form, contact_email: event.target.value })}
+                className={formInputClass}
+              />
+            </Field>
+            <Field label="Telemóvel">
+              <input
+                value={form.contact_phone}
+                onChange={(event) => setForm({ ...form, contact_phone: event.target.value })}
+                className={formInputClass}
+              />
+            </Field>
+            <Field label="Fase">
+              <select
+                value={form.stage}
+                onChange={(event) => setForm({ ...form, stage: event.target.value })}
+                className={formInputClass}
+              >
+                {line.pipeline.map((stage) => (
+                  <option key={stage} value={stage}>{stage}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Valor estimado (€)">
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.estimated_value}
+                onChange={(event) => setForm({ ...form, estimated_value: event.target.value })}
+                className={formInputClass}
+              />
+            </Field>
+            <Field label="Próxima ação">
+              <input
+                value={form.next_action}
+                onChange={(event) => setForm({ ...form, next_action: event.target.value })}
+                placeholder="Ex.: enviar proposta"
+                className={formInputClass}
+              />
+            </Field>
+            <Field label="Data da próxima ação">
+              <input
+                type="date"
+                value={form.next_action_date}
+                onChange={(event) => setForm({ ...form, next_action_date: event.target.value })}
+                className={formInputClass}
+              />
+            </Field>
+            <div className="sm:col-span-2 xl:col-span-4">
+              <Field label="Notas">
+                <textarea
+                  rows={3}
+                  value={form.notes}
+                  onChange={(event) => setForm({ ...form, notes: event.target.value })}
+                  className={formInputClass}
+                />
+              </Field>
+            </div>
+          </div>
+
+          <div className="mt-5 flex justify-end">
+            <button
+              disabled={saving}
+              className="rounded-xl bg-[#B89A84] px-5 py-3 text-sm font-semibold text-[#151515] disabled:opacity-50"
+            >
+              {saving ? "A guardar..." : "Guardar lead"}
+            </button>
+          </div>
+        </form>
+      )}
 
       <section className="grid xl:grid-cols-3 gap-5 mt-8">
         <div className="xl:col-span-2 rounded-2xl border border-white/[0.08] bg-white/[0.025]">
-          <PanelHeader eyebrow="Oportunidades" title="Leads ativas" />
-          <EmptyState>
-            Ainda não existem leads em {line.name}. O botão “+ Novo” já assume este ramo como contexto.
-          </EmptyState>
+          <PanelHeader eyebrow="Oportunidades" title="Leads" />
+          {loading ? (
+            <div className="p-5 text-sm text-white/30">A carregar leads...</div>
+          ) : leads.length === 0 ? (
+            <EmptyState>
+              Ainda não tens leads registadas em {line.name}. Adiciona a primeira para alimentar o pipeline e os follow-ups.
+            </EmptyState>
+          ) : (
+            <div>
+              {leads.map((lead) => (
+                <div
+                  key={lead.id}
+                  className="px-5 py-4 border-b border-white/[0.05] last:border-b-0"
+                >
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white/80">{lead.name}</p>
+                      <p className="text-xs text-white/30 mt-1">
+                        {lead.contact_name || "Sem contacto"}
+                        {lead.next_action ? " · Próxima: " + lead.next_action : ""}
+                        {lead.next_action_date ? " · " + formatDate(lead.next_action_date) : ""}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {Number(lead.estimated_value || 0) > 0 && (
+                        <span className="text-sm text-white/55">
+                          {money(lead.estimated_value)}
+                        </span>
+                      )}
+                      <select
+                        value={lead.stage}
+                        onChange={(event) => updateStage(lead.id, event.target.value)}
+                        className="rounded-lg border border-white/10 bg-[#1A1A1A] px-2 py-1.5 text-xs text-white/60 outline-none"
+                      >
+                        {line.pipeline.map((stage) => (
+                          <option key={stage} value={stage}>{stage}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => deleteLead(lead.id)}
+                        className="rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-xs text-white/25 hover:text-red-200 hover:border-red-400/20 transition"
+                      >
+                        Apagar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025]">
-          <PanelHeader eyebrow="Ficha" title="Campos deste ramo" />
+          <PanelHeader eyebrow="Ficha" title="Dados úteis deste ramo" />
           <div className="p-5 space-y-2">
             {line.fields.map((field) => (
               <div
@@ -586,60 +906,289 @@ function RecurringClients({ contracts = [], loading }) {
   );
 }
 
-function ActiveClients() {
+function ActiveClients({ contracts = [], jobs = [], loading }) {
+  const mrr = contracts.reduce(
+    (total, contract) => total + Number(contract.amount || 0),
+    0
+  );
+
   return (
     <section className="rounded-2xl border border-white/[0.08] bg-white/[0.025]">
       <PanelHeader eyebrow="Retenção" title="Clientes ativos" />
-      <EmptyState>
-        Atualmente não existem clientes ativos de gestão de redes sociais. Quando houver,
-        esta área acompanha avença, entregas, renovação e último contacto.
-      </EmptyState>
+      <div className="p-5">
+        <div className="grid sm:grid-cols-2 gap-3 mb-5">
+          <MiniMetric label="Clientes ativos" value={loading ? "…" : String(contracts.length)} />
+          <MiniMetric label="MRR" value={loading ? "…" : money(mrr)} />
+        </div>
+
+        {loading ? (
+          <div className="rounded-xl border border-dashed border-white/10 px-5 py-10 text-center text-sm text-white/30">
+            A carregar clientes...
+          </div>
+        ) : contracts.length === 0 ? (
+          <EmptyState compact>
+            Não existem clientes ativos neste momento.
+          </EmptyState>
+        ) : (
+          <div className="space-y-3">
+            {contracts.map((contract) => {
+              const clientJobs = jobs.filter(
+                (job) => normalizeName(job.client_name) === normalizeName(contract.client_name)
+              );
+              const historicalRevenue = clientJobs.reduce(
+                (total, job) => total + Number(job.revenue || 0),
+                0
+              );
+
+              return (
+                <div
+                  key={contract.id}
+                  className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-white/80">{contract.client_name}</p>
+                      <p className="text-xs text-white/30 mt-1">
+                        Desde {formatDate(contract.start_date)} · {contract.title}
+                      </p>
+                      <p className="text-xs text-white/25 mt-2">
+                        {clientJobs.length} {clientJobs.length === 1 ? "trabalho" : "trabalhos"} · histórico {money(historicalRevenue)}
+                      </p>
+                    </div>
+                    <p className="text-lg font-semibold shrink-0">{money(contract.amount)}/mês</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
 
-function LostClients() {
+function LostClients({ contracts = [], jobs = [], loading, onRefresh }) {
   const reasons = ["Preço", "Resultados", "Comunicação", "Deixou de precisar", "Concorrência", "Expectativas"];
+  const reasonCounts = reasons
+    .map((reason) => ({
+      reason,
+      count: contracts.filter((contract) => contract.churn_reason === reason).length,
+    }))
+    .filter((item) => item.count > 0);
+  const missingReasons = contracts.filter((contract) => !contract.churn_reason).length;
 
   return (
     <section className="grid xl:grid-cols-3 gap-5">
       <div className="xl:col-span-2 rounded-2xl border border-white/[0.08] bg-white/[0.025]">
         <PanelHeader eyebrow="Churn" title="Clientes perdidos" />
-        <EmptyState>
-          Tens 2 clientes recentes para documentar. Quando ligarmos os dados, vamos registar a razão,
-          data de saída e aprendizagem de cada perda.
-        </EmptyState>
+        {loading ? (
+          <div className="p-5 text-sm text-white/30">A carregar histórico...</div>
+        ) : contracts.length === 0 ? (
+          <EmptyState>Não existem clientes perdidos registados.</EmptyState>
+        ) : (
+          <div className="p-5 space-y-3">
+            {contracts.map((contract) => (
+              <LostClientCard
+                key={contract.id}
+                contract={contract}
+                jobs={jobs}
+                reasons={reasons}
+                onRefresh={onRefresh}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025]">
         <PanelHeader eyebrow="Análise" title="Motivos de saída" />
-        <div className="p-5 flex flex-wrap gap-2">
-          {reasons.map((reason) => (
-            <span
-              key={reason}
-              className="rounded-full border border-white/[0.08] px-3 py-1.5 text-xs text-white/40"
-            >
-              {reason}
-            </span>
-          ))}
+        <div className="p-5">
+          {loading ? (
+            <p className="text-sm text-white/30">A carregar...</p>
+          ) : reasonCounts.length === 0 && missingReasons === 0 ? (
+            <p className="text-sm text-white/30">Sem saídas registadas.</p>
+          ) : (
+            <div className="space-y-2">
+              {reasonCounts.map(({ reason, count }) => (
+                <div
+                  key={reason}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] px-3 py-2.5"
+                >
+                  <span className="text-sm text-white/45">{reason}</span>
+                  <span className="text-sm font-semibold">{count}</span>
+                </div>
+              ))}
+              {missingReasons > 0 && (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-[#B89A84]/20 bg-[#B89A84]/[0.05] px-3 py-2.5">
+                  <span className="text-sm text-[#C7AA95]">Motivo por registar</span>
+                  <span className="text-sm font-semibold">{missingReasons}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </section>
   );
 }
 
-function LineCalendar({ line }) {
+function LostClientCard({ contract, jobs, reasons, onRefresh }) {
+  const [editing, setEditing] = useState(false);
+  const [reason, setReason] = useState(contract.churn_reason || "");
+  const [notes, setNotes] = useState(contract.churn_notes || "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const clientJobs = jobs.filter(
+    (job) => normalizeName(job.client_name) === normalizeName(contract.client_name)
+  );
+  const historicalRevenue = clientJobs.reduce(
+    (total, job) => total + Number(job.revenue || 0),
+    0
+  );
+
+  async function saveChurn() {
+    setSaving(true);
+    setError("");
+
+    const { error: updateError } = await supabase
+      .from("workspace_recurring_revenue")
+      .update({
+        churn_reason: reason || null,
+        churn_notes: notes.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", contract.id);
+
+    setSaving(false);
+
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+
+    setEditing(false);
+    await onRefresh();
+  }
+
+  return (
+    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-white/80">{contract.client_name}</p>
+          <p className="text-xs text-white/30 mt-1">
+            {formatDate(contract.start_date)} → {formatDate(contract.end_date)}
+          </p>
+          <p className="text-xs text-white/25 mt-2">
+            {clientJobs.length} {clientJobs.length === 1 ? "mensalidade/trabalho" : "mensalidades/trabalhos"} · {money(historicalRevenue)} faturados
+          </p>
+        </div>
+        <div className="sm:text-right">
+          <p className="text-sm text-white/55">{money(contract.amount)}/mês</p>
+          <button
+            type="button"
+            onClick={() => setEditing((value) => !value)}
+            className="mt-2 text-xs text-[#B89A84] hover:text-white transition"
+          >
+            {editing ? "Fechar" : contract.churn_reason ? "Editar motivo" : "Registar motivo"}
+          </button>
+        </div>
+      </div>
+
+      {!editing && (
+        <div className="mt-4 pt-4 border-t border-white/[0.05]">
+          <p className="text-xs text-white/35">
+            <span className="text-white/20">Motivo:</span>{" "}
+            {contract.churn_reason || "Ainda não registado"}
+          </p>
+          {contract.churn_notes && (
+            <p className="text-xs text-white/30 mt-2 leading-relaxed">{contract.churn_notes}</p>
+          )}
+        </div>
+      )}
+
+      {editing && (
+        <div className="mt-4 pt-4 border-t border-white/[0.05] space-y-3">
+          <Field label="Motivo de saída">
+            <select
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              className={formInputClass}
+            >
+              <option value="">Selecionar...</option>
+              {reasons.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Aprendizagem / notas">
+            <textarea
+              rows={3}
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              className={formInputClass}
+            />
+          </Field>
+          {error && <p className="text-xs text-red-200">{error}</p>}
+          <div className="flex justify-end">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={saveChurn}
+              className="rounded-lg bg-[#B89A84] px-4 py-2 text-xs font-semibold text-[#151515] disabled:opacity-50"
+            >
+              {saving ? "A guardar..." : "Guardar"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LineCalendar({ line, jobs = [], loading }) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const upcoming = jobs
+    .filter((job) => job.job_date && new Date(job.job_date + "T12:00:00") >= today)
+    .sort((a, b) => a.job_date.localeCompare(b.job_date));
+
   return (
     <section className="rounded-2xl border border-white/[0.08] bg-white/[0.025]">
-      <PanelHeader eyebrow="Disponibilidade" title={`Calendário de ${line.name}`} />
+      <PanelHeader eyebrow="Disponibilidade" title={"Calendário de " + line.name} />
       <div className="p-5">
-        <EmptyState compact>
-          Aqui vais ver apenas compromissos deste ramo. O calendário global junta os quatro ramos
-          para evitar conflitos de datas.
-        </EmptyState>
+        {loading ? (
+          <div className="rounded-xl border border-dashed border-white/10 px-5 py-10 text-center text-sm text-white/30">
+            A carregar calendário...
+          </div>
+        ) : upcoming.length === 0 ? (
+          <EmptyState compact>
+            Sem compromissos futuros registados neste ramo.
+          </EmptyState>
+        ) : (
+          <div className="space-y-2">
+            {upcoming.map((job) => (
+              <div
+                key={job.id}
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm text-white/70">{job.client_name}</p>
+                  <p className="text-xs text-white/25 mt-1">{job.title}</p>
+                </div>
+                <div className="sm:text-right shrink-0">
+                  <p className="text-sm text-white/55">{formatDate(job.job_date)}</p>
+                  <p className="text-xs text-white/25 mt-1">{statusLabel(job.status)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="mt-4 text-right">
           <Link
-            to="/tomasmondim/calendario"
+            to="/tomasmondim/admin/calendario"
             className="text-sm text-[#B89A84] hover:text-white transition"
           >
             Abrir calendário global →
@@ -650,62 +1199,79 @@ function LineCalendar({ line }) {
   );
 }
 
-function Sops({ line }) {
+function Sops({ line, sops = [], loading }) {
   return (
     <>
-      <SectionTitle eyebrow="Playbook" title={`SOPs de ${line.name}`} />
-      <div className="grid md:grid-cols-3 gap-3">
-        {line.nextActions.map((action) => (
-          <div
-            key={action}
-            className="rounded-2xl border border-white/[0.08] bg-white/[0.025] px-5 py-5"
-          >
-            <div className="h-5 w-5 rounded-md border border-white/15 mb-4" />
-            <p className="text-sm text-white/55">{action}</p>
-          </div>
-        ))}
+      <div className="flex items-end justify-between gap-4 mb-4">
+        <SectionTitle eyebrow="Playbook" title={"SOPs de " + line.name} />
+        <Link
+          to="/tomasmondim/admin/equipa"
+          className="mb-4 text-sm text-[#B89A84] hover:text-white transition"
+        >
+          Gerir SOPs →
+        </Link>
       </div>
 
-      <div className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
-        <p className="text-sm text-white/40 leading-relaxed">
-          O objetivo é que um trabalho novo possa aplicar um SOP e gerar automaticamente
-          as tarefas certas para esse tipo de serviço.
-        </p>
-      </div>
+      {loading ? (
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] px-5 py-12 text-center text-sm text-white/30">
+          A carregar SOPs...
+        </div>
+      ) : sops.length === 0 ? (
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
+          <EmptyState compact>
+            Ainda não existem SOPs registados para este ramo.
+          </EmptyState>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {sops.map((sop) => (
+            <div
+              key={sop.id}
+              className="rounded-2xl border border-white/[0.08] bg-white/[0.025] px-5 py-5"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-[10px] uppercase tracking-[0.16em] text-[#B89A84]">
+                  {sop.business_line ? line.name : "Geral"}
+                </span>
+                <span className={sop.is_published ? "text-[10px] text-emerald-300/60" : "text-[10px] text-white/20"}>
+                  {sop.is_published ? "Publicado" : "Rascunho"}
+                </span>
+              </div>
+              <h3 className="font-semibold mt-3">{sop.title}</h3>
+              <p className="text-sm text-white/35 mt-2 leading-relaxed">
+                {sop.summary || previewText(sop.content)}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
 
-function Pipeline({ line, jobs = [] }) {
-  function stageCount(stage) {
-    if (line.id !== "futebol") return 0;
-    if (stage === "Agendada") {
-      return jobs.filter((job) => job.status === "scheduled").length;
-    }
-    if (stage === "Realizada") {
-      return jobs.filter((job) => job.status === "completed").length;
-    }
-    return 0;
-  }
-
+function Pipeline({ line, leads = [] }) {
   return (
     <div className="grid md:grid-cols-5 gap-3">
-      {line.pipeline.map((stage, index) => (
-        <div
-          key={stage}
-          className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 min-h-[118px]"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-xs text-white/30">
-              {String(index + 1).padStart(2, "0")}
-            </span>
-            <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-white/35">
-              {stageCount(stage)}
-            </span>
+      {line.pipeline.map((stage, index) => {
+        const count = leads.filter((lead) => lead.stage === stage).length;
+
+        return (
+          <div
+            key={stage}
+            className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 min-h-[118px]"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs text-white/30">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-white/35">
+                {count}
+              </span>
+            </div>
+            <p className="font-medium mt-6">{stage}</p>
           </div>
-          <p className="font-medium mt-6">{stage}</p>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -864,6 +1430,53 @@ function paymentLabel(value) {
     }[value] || value
   );
 }
+
+function statusLabel(value) {
+  return (
+    {
+      completed: "Concluído",
+      in_progress: "Em curso",
+      scheduled: "Agendado",
+      cancelled: "Cancelado",
+    }[value] || value
+  );
+}
+
+function normalizeName(value) {
+  return String(value || "").trim().toLocaleLowerCase("pt-PT");
+}
+
+function previewText(value) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "Sem resumo.";
+  return text.length > 150 ? text.slice(0, 147) + "..." : text;
+}
+
+function emptyLeadForm(line) {
+  return {
+    name: "",
+    contact_name: "",
+    contact_email: "",
+    contact_phone: "",
+    stage: line.pipeline[0],
+    estimated_value: "",
+    next_action: "",
+    next_action_date: "",
+    notes: "",
+  };
+}
+
+function Field({ label, children }) {
+  return (
+    <label className="block">
+      <span className="block text-xs text-white/45 mb-2">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+const formInputClass =
+  "w-full rounded-xl border border-white/10 bg-[#1A1A1A] px-4 py-3 text-sm text-white outline-none focus:border-[#B89A84]/60";
 
 function EmptyState({ children, compact = false }) {
   return (
