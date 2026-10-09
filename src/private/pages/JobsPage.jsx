@@ -27,6 +27,7 @@ const emptyPlayerDraft = {
 export default function JobsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [jobs, setJobs] = useState([]);
+  const [fixedExpenses, setFixedExpenses] = useState([]);
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -70,15 +71,22 @@ export default function JobsPage() {
       query = query.eq("payment_status", paymentFilter);
     }
 
-    const { data, error: loadError } = await query;
+    const [jobsResult, fixedResult] = await Promise.all([
+      query,
+      supabase
+        .from("workspace_recurring_expenses")
+        .select("*")
+        .order("start_date", { ascending: true }),
+    ]);
+
+    const loadError = jobsResult.error || fixedResult.error;
 
     if (loadError) {
       setError(loadError.message);
-      setJobs([]);
-    } else {
-      setJobs(data || []);
     }
 
+    setJobs(jobsResult.data || []);
+    setFixedExpenses(fixedResult.data || []);
     setLoading(false);
   }, [lineFilter, paymentFilter, periodFilter, statusFilter]);
 
@@ -156,10 +164,15 @@ export default function JobsPage() {
     const receivable = validJobs
       .filter((job) => job.payment_status !== "paid")
       .reduce((total, job) => total + Number(job.revenue || 0), 0);
-    const forecastCosts = validJobs.reduce(
+    const jobCosts = validJobs.reduce(
       (total, job) => total + totalCostForJob(job),
       0
     );
+    const fixedCosts =
+      lineFilter === "all"
+        ? recurringCostForPeriod(fixedExpenses, periodFilter, validJobs)
+        : 0;
+    const forecastCosts = jobCosts + fixedCosts;
 
     return {
       jobs: validJobs.length,
@@ -167,10 +180,12 @@ export default function JobsPage() {
       completedRevenue,
       pendingRevenue,
       receivable,
+      jobCosts,
+      fixedCosts,
       forecastCosts,
       forecastMargin: forecastRevenue - forecastCosts,
     };
-  }, [jobs]);
+  }, [jobs, fixedExpenses, lineFilter, periodFilter]);
 
   const footballStats = useMemo(() => {
     const footballJobs = jobs.filter((job) => job.business_line === "futebol");
@@ -666,9 +681,23 @@ export default function JobsPage() {
             hint="Trabalhos ainda não marcados como pagos"
           />
           <Metric
+            label="Custos dos trabalhos"
+            value={money(forecast.jobCosts)}
+            hint="Custos diretos + colaboradores"
+          />
+          <Metric
+            label="Custos fixos"
+            value={lineFilter === "all" ? money(forecast.fixedCosts) : "—"}
+            hint={
+              lineFilter === "all"
+                ? "Inclui o estúdio e outros custos recorrentes"
+                : "Custos gerais só entram na vista Prisma"
+            }
+          />
+          <Metric
             label="Custos previstos"
             value={money(forecast.forecastCosts)}
-            hint="Custos diretos + colaboradores"
+            hint="Trabalhos + custos fixos"
           />
           <Metric
             label="Margem prevista"
@@ -1331,6 +1360,52 @@ function dateKey(date) {
 
 function capitalize(value) {
   return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+}
+
+function recurringCostForPeriod(expenses, period, jobs) {
+  if (!expenses.length) return 0;
+
+  const bounds = periodBounds(period);
+  const starts = expenses.map((expense) => expense.start_date).filter(Boolean);
+  const jobDates = jobs.map((job) => job.job_date).filter(Boolean).sort();
+
+  const start =
+    bounds.start ||
+    starts.sort()[0];
+
+  const today = dateKey(new Date());
+  const latestJobDate = jobDates[jobDates.length - 1];
+  const end =
+    bounds.end ||
+    (latestJobDate && latestJobDate > today ? latestJobDate : today);
+
+  if (!start || !end) return 0;
+
+  const cursor = new Date(start + "T12:00:00");
+  cursor.setDate(1);
+  const endDate = new Date(end + "T12:00:00");
+
+  let total = 0;
+
+  while (cursor <= endDate) {
+    const monthStart = dateKey(
+      new Date(cursor.getFullYear(), cursor.getMonth(), 1)
+    );
+    const monthEnd = dateKey(
+      new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0)
+    );
+
+    expenses.forEach((expense) => {
+      if (!expense.active && !expense.end_date) return;
+      if (expense.start_date > monthEnd) return;
+      if (expense.end_date && expense.end_date < monthStart) return;
+      total += Number(expense.amount || 0);
+    });
+
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+
+  return total;
 }
 
 function statusForDate(value) {
