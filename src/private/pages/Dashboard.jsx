@@ -6,6 +6,7 @@ import { supabase } from "../../lib/supabase";
 
 export default function Dashboard() {
   const [jobs, setJobs] = useState([]);
+  const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -13,16 +14,27 @@ export default function Dashboard() {
     setLoading(true);
     setError("");
 
-    const { data, error: loadError } = await supabase
-      .from("workspace_jobs")
-      .select("*, football_teams(id,name,season)")
-      .order("job_date", { ascending: false });
+    const [jobsResult, leadsResult] = await Promise.all([
+      supabase
+        .from("workspace_jobs")
+        .select("*, football_teams(id,name,season)")
+        .order("job_date", { ascending: false }),
+      supabase
+        .from("workspace_leads")
+        .select("*")
+        .order("next_action_date", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: false }),
+    ]);
+
+    const loadError = jobsResult.error || leadsResult.error;
 
     if (loadError) {
       setError(loadError.message);
-      setJobs([]);
+      setJobs(jobsResult.data || []);
+      setLeads(leadsResult.data || []);
     } else {
-      setJobs(data || []);
+      setJobs(jobsResult.data || []);
+      setLeads(leadsResult.data || []);
     }
 
     setLoading(false);
@@ -36,6 +48,11 @@ export default function Dashboard() {
     const now = new Date();
     const monthJobs = jobs.filter((job) => sameMonth(job.job_date, now));
     const revenueThisMonth = sum(monthJobs, "revenue");
+    const openLeads = leads.filter((lead) => !isClosedLead(lead));
+    const pipelineValue = openLeads.reduce(
+      (total, lead) => total + Number(lead.estimated_value || 0),
+      0
+    );
     const receivable = jobs
       .filter((job) => job.payment_status !== "paid")
       .reduce((total, job) => total + Number(job.revenue || 0), 0);
@@ -65,8 +82,27 @@ export default function Dashboard() {
       })
       .sort((a, b) => a.job_date.localeCompare(b.job_date));
 
+    const overdueFollowups = openLeads.filter(
+      (lead) =>
+        lead.next_action_date &&
+        parseDate(lead.next_action_date) < today
+    );
+
+    const proposalsWaiting = openLeads.filter((lead) =>
+      ["Proposta", "Orçamento"].includes(lead.stage)
+    );
+
+    const leadActions = openLeads
+      .filter((lead) => lead.next_action || lead.next_action_date)
+      .sort((a, b) =>
+        (a.next_action_date || "9999-12-31").localeCompare(
+          b.next_action_date || "9999-12-31"
+        )
+      );
+
     return {
       revenueThisMonth,
+      pipelineValue,
       receivable,
       monthJobs: monthJobs.length,
       byLine,
@@ -77,8 +113,11 @@ export default function Dashboard() {
           job.job_date &&
           parseDate(job.job_date) < today
       ).length,
+      overdueFollowups,
+      proposalsWaiting,
+      leadActions,
     };
-  }, [jobs]);
+  }, [jobs, leads]);
 
   const summaryCards = [
     {
@@ -88,8 +127,8 @@ export default function Dashboard() {
     },
     {
       label: "Pipeline aberto",
-      value: "0 €",
-      hint: "Será alimentado pelas leads",
+      value: money(stats.pipelineValue),
+      hint: leads.filter((lead) => !isClosedLead(lead)).length + " leads abertas",
     },
     {
       label: "A receber",
@@ -194,8 +233,14 @@ export default function Dashboard() {
           </div>
 
           <div className="p-5 space-y-3">
-            <AttentionRow label="Follow-ups atrasados" value="0" />
-            <AttentionRow label="Propostas sem resposta" value="0" />
+            <AttentionRow
+              label="Follow-ups atrasados"
+              value={loading ? "…" : String(stats.overdueFollowups.length)}
+            />
+            <AttentionRow
+              label="Propostas sem resposta"
+              value={loading ? "…" : String(stats.proposalsWaiting.length)}
+            />
             <AttentionRow
               label="Pagamentos em atraso"
               value={loading ? "…" : String(stats.overduePayments)}
@@ -279,11 +324,44 @@ export default function Dashboard() {
           </div>
 
           <div className="p-5">
-            <div className="rounded-xl border border-dashed border-white/10 px-5 py-10 text-center">
-              <p className="text-sm text-white/35">
-                As tarefas ficam nesta área quando o módulo de tarefas estiver ligado aos trabalhos e leads.
-              </p>
-            </div>
+            {loading ? (
+              <p className="text-sm text-white/30 text-center py-10">A carregar...</p>
+            ) : stats.leadActions.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-white/10 px-5 py-10 text-center">
+                <p className="text-sm text-white/35">
+                  Sem follow-ups de leads registados.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {stats.leadActions.slice(0, 6).map((lead) => {
+                  const line = businessLines.find((item) => item.id === lead.business_line);
+                  const overdue =
+                    lead.next_action_date &&
+                    parseDate(lead.next_action_date) < startOfDay(new Date());
+
+                  return (
+                    <Link
+                      key={lead.id}
+                      to={"/tomasmondim/admin/ramo/" + lead.business_line + "/leads"}
+                      className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 hover:bg-white/[0.04] transition"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm text-white/65 truncate">
+                          {line?.icon} {lead.name}
+                        </p>
+                        <p className="text-xs text-white/25 mt-1 truncate">
+                          {lead.next_action || "Follow-up"} · {lead.stage}
+                        </p>
+                      </div>
+                      <span className={overdue ? "text-xs text-red-200/70 shrink-0" : "text-xs text-white/30 shrink-0"}>
+                        {lead.next_action_date ? formatDate(lead.next_action_date) : "Sem data"}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -314,6 +392,11 @@ function AttentionRow({ label, value }) {
       <span className="text-sm font-semibold text-white">{value}</span>
     </div>
   );
+}
+
+function isClosedLead(lead) {
+  const line = businessLines.find((item) => item.id === lead.business_line);
+  return Boolean(line && lead.stage === line.pipeline[line.pipeline.length - 1]);
 }
 
 function sum(items, field) {
