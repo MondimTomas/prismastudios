@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { skillOptions, transportOptions } from "../../team/teamOptions";
 
+const AUTH_REDIRECT_URL = "https://prismastudios.pt/tomasmondim/login";
+
 const emptyRegistration = {
   full_name: "",
   email: "",
@@ -36,6 +38,9 @@ export default function Login() {
   const [error, setError] = useState("");
   const [registrationDone, setRegistrationDone] = useState(false);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
+  const [loginNeedsConfirmation, setLoginNeedsConfirmation] = useState(false);
+  const [resendingConfirmation, setResendingConfirmation] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -70,6 +75,8 @@ export default function Login() {
     setMode(nextMode);
     setError("");
     setRegistrationDone(false);
+    setLoginNeedsConfirmation(false);
+    setConfirmationMessage("");
 
     const next = new URLSearchParams(searchParams);
     if (nextMode === "register") next.set("modo", "registo");
@@ -89,6 +96,8 @@ export default function Login() {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setLoginNeedsConfirmation(false);
+    setConfirmationMessage("");
 
     const { data, error: loginError } = await supabase.auth.signInWithPassword({
       email: loginForm.email.trim(),
@@ -97,6 +106,16 @@ export default function Login() {
 
     if (loginError) {
       setLoading(false);
+
+      if (
+        loginError.code === "email_not_confirmed" ||
+        /email not confirmed/i.test(loginError.message || "")
+      ) {
+        setLoginNeedsConfirmation(true);
+        setError("Ainda tens de confirmar o teu email antes de entrares.");
+        return;
+      }
+
       setError("Email ou palavra-passe incorretos.");
       return;
     }
@@ -123,6 +142,42 @@ export default function Login() {
     setError("Esta conta não está associada a um workspace Prisma.");
   }
 
+  async function resendConfirmation(email) {
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail) {
+      setError("Indica o teu email primeiro.");
+      return;
+    }
+
+    setResendingConfirmation(true);
+    setError("");
+    setConfirmationMessage("");
+
+    const { error: resendError } = await supabase.auth.resend({
+      type: "signup",
+      email: normalizedEmail,
+      options: {
+        emailRedirectTo: AUTH_REDIRECT_URL,
+      },
+    });
+
+    setResendingConfirmation(false);
+
+    if (resendError) {
+      setError(
+        resendError.status === 429
+          ? "Já foi enviado um email há pouco. Aguarda um momento e tenta novamente."
+          : "Não foi possível reenviar o email de confirmação."
+      );
+      return;
+    }
+
+    setConfirmationMessage(
+      "Novo email enviado. O link de confirmação abre agora no prismastudios.pt."
+    );
+  }
+
   async function handleRegister(event) {
     event.preventDefault();
     setLoading(true);
@@ -132,7 +187,7 @@ export default function Login() {
       email: registration.email.trim(),
       password: registration.password,
       options: {
-        emailRedirectTo: window.location.origin + "/tomasmondim/login",
+        emailRedirectTo: AUTH_REDIRECT_URL,
         data: {
           workspace_context: "prisma_collaborator",
           full_name: registration.full_name.trim(),
@@ -250,6 +305,25 @@ export default function Login() {
 
             {error && <ErrorMessage>{error}</ErrorMessage>}
 
+            {loginNeedsConfirmation && (
+              <button
+                type="button"
+                onClick={() => resendConfirmation(loginForm.email)}
+                disabled={resendingConfirmation}
+                className="w-full rounded-2xl border border-[#B89A84]/30 bg-[#B89A84]/[0.06] py-3 text-sm font-medium text-[#D8C3B4] hover:bg-[#B89A84]/[0.1] disabled:opacity-50 transition"
+              >
+                {resendingConfirmation
+                  ? "A reenviar..."
+                  : "Reenviar email de confirmação"}
+              </button>
+            )}
+
+            {confirmationMessage && (
+              <p className="text-emerald-200 text-sm bg-emerald-400/10 border border-emerald-400/20 rounded-xl px-4 py-3">
+                {confirmationMessage}
+              </p>
+            )}
+
             <button
               type="submit"
               disabled={loading}
@@ -267,10 +341,27 @@ export default function Login() {
                 ? "Confirma o email que recebeste. Depois podes entrar aqui com a tua conta; os trabalhos ficam disponíveis depois da aprovação do administrador."
                 : "A tua conta foi criada. Os trabalhos ficam disponíveis depois da aprovação do administrador."}
             </p>
+            {needsConfirmation && (
+              <button
+                type="button"
+                onClick={() => resendConfirmation(registration.email)}
+                disabled={resendingConfirmation}
+                className="mt-6 rounded-xl border border-[#B89A84]/30 px-5 py-3 text-sm font-medium text-[#D8C3B4] disabled:opacity-50"
+              >
+                {resendingConfirmation
+                  ? "A reenviar..."
+                  : "Reenviar confirmação"}
+              </button>
+            )}
+
+            {confirmationMessage && (
+              <p className="mt-4 text-sm text-emerald-200">{confirmationMessage}</p>
+            )}
+
             <button
               type="button"
               onClick={() => changeMode("login")}
-              className="mt-6 rounded-xl bg-[#B89A84] px-5 py-3 text-sm font-semibold text-[#151515]"
+              className="mt-4 rounded-xl bg-[#B89A84] px-5 py-3 text-sm font-semibold text-[#151515]"
             >
               Ir para login
             </button>
