@@ -49,15 +49,19 @@ export default function TeamDashboard() {
     }
 
     const [profileResult, assignmentResult, sopResult] = await Promise.all([
-      supabase.from("collaborator_profiles").select("*").eq("user_id", targetUserId).maybeSingle(),
+      supabase
+        .from("collaborator_profiles")
+        .select("user_id,full_name,email,phone,city,skills,transport_mode,travel_radius_km,equipment")
+        .eq("user_id", targetUserId)
+        .maybeSingle(),
       supabase
         .from("collaborator_assignments")
-        .select("*, workspace_jobs(id,business_line,client_name,title,service_type,job_date,status,notes,revenue)")
+        .select("id,job_id,role,fee_amount,travel_reimbursement,notes,status,created_at,updated_at, workspace_jobs(id,business_line,client_name,title,service_type,job_date,status)")
         .eq("collaborator_user_id", targetUserId)
         .order("created_at", { ascending: false }),
       supabase
         .from("workspace_sops")
-        .select("*")
+        .select("id,business_line,title,summary,content,sort_order")
         .eq("is_published", true)
         .order("sort_order", { ascending: true }),
     ]);
@@ -130,7 +134,7 @@ export default function TeamDashboard() {
         <>
           <div className="grid sm:grid-cols-3 gap-4">
             <Metric label="Próximos trabalhos" value={String(upcoming.length)} />
-            <Metric label="Valor previsto" value={money(expected)} />
+            <Metric label="A receber" value={money(expected)} />
             <Metric label="SOPs disponíveis" value={String(sops.length)} />
           </div>
 
@@ -153,13 +157,34 @@ export default function TeamDashboard() {
                           <p className="text-xs text-[#B89A84]">{formatDate(job?.job_date)} · {assignment.role}</p>
                           <h3 className="text-lg font-semibold mt-1">{job?.client_name}</h3>
                           <p className="text-sm text-white/40 mt-1">{job?.title}</p>
-                          {job?.notes && <p className="text-sm text-white/30 mt-3">{job.notes}</p>}
+                          {assignment.notes && (
+                            <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
+                              <p className="text-[10px] uppercase tracking-[0.16em] text-white/25">
+                                Informação para ti
+                              </p>
+                              <p className="text-sm text-white/45 mt-2 whitespace-pre-wrap">
+                                {assignment.notes}
+                              </p>
+                            </div>
+                          )}
                         </div>
                         <div className="lg:text-right">
-                          <p className="text-2xl font-semibold">{money(Number(assignment.fee_amount || 0) + Number(assignment.travel_reimbursement || 0))}</p>
+                          <p className="text-[10px] uppercase tracking-[0.16em] text-white/25">
+                            Teu pagamento
+                          </p>
+                          <p className="text-2xl font-semibold mt-1">
+                            {money(
+                              Number(assignment.fee_amount || 0) +
+                                Number(assignment.travel_reimbursement || 0)
+                            )}
+                          </p>
                           <p className="text-xs text-white/30 mt-1">
-                            {money(assignment.fee_amount)} trabalho
-                            {Number(assignment.travel_reimbursement || 0) > 0 ? " + " + money(assignment.travel_reimbursement) + " deslocação" : ""}
+                            {money(assignment.fee_amount)} fee
+                            {Number(assignment.travel_reimbursement || 0) > 0
+                              ? " + " +
+                                money(assignment.travel_reimbursement) +
+                                " deslocação"
+                              : ""}
                           </p>
                         </div>
                       </div>
