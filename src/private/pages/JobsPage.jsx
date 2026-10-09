@@ -34,6 +34,8 @@ export default function JobsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [lineFilter, setLineFilter] = useState(searchParams.get("ramo") || "all");
+  const [periodFilter, setPeriodFilter] = useState("month");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [form, setForm] = useState({
     ...emptyForm,
@@ -56,11 +58,14 @@ export default function JobsPage() {
     let query = supabase
       .from("workspace_jobs")
       .select("*, football_teams(id,name,season), workspace_job_players(player_id), collaborator_assignments(fee_amount,travel_reimbursement,status)")
-      .gte("job_date", "2026-01-01")
-      .lte("job_date", "2026-12-31")
       .order("job_date", { ascending: false });
 
+    const bounds = periodBounds(periodFilter);
+
+    if (bounds.start) query = query.gte("job_date", bounds.start);
+    if (bounds.end) query = query.lte("job_date", bounds.end);
     if (lineFilter !== "all") query = query.eq("business_line", lineFilter);
+    if (statusFilter !== "all") query = query.eq("status", statusFilter);
     if (paymentFilter !== "all") {
       query = query.eq("payment_status", paymentFilter);
     }
@@ -75,7 +80,7 @@ export default function JobsPage() {
     }
 
     setLoading(false);
-  }, [lineFilter, paymentFilter]);
+  }, [lineFilter, paymentFilter, periodFilter, statusFilter]);
 
   const loadTeams = useCallback(async () => {
     const { data, error: loadError } = await supabase
@@ -131,18 +136,41 @@ export default function JobsPage() {
     loadPlayers(teamChoice);
   }, [form.business_line, loadPlayers, showForm, teamChoice]);
 
-  const totals = useMemo(
-    () =>
-      jobs.reduce(
-        (acc, job) => {
-          acc.revenue += Number(job.revenue || 0);
-          acc.costs += totalCostForJob(job);
-          return acc;
-        },
-        { revenue: 0, costs: 0 }
-      ),
-    [jobs]
-  );
+  const forecast = useMemo(() => {
+    const validJobs = jobs.filter((job) => job.status !== "cancelled");
+    const completedJobs = validJobs.filter((job) => job.status === "completed");
+    const pendingJobs = validJobs.filter((job) => job.status !== "completed");
+
+    const forecastRevenue = validJobs.reduce(
+      (total, job) => total + Number(job.revenue || 0),
+      0
+    );
+    const completedRevenue = completedJobs.reduce(
+      (total, job) => total + Number(job.revenue || 0),
+      0
+    );
+    const pendingRevenue = pendingJobs.reduce(
+      (total, job) => total + Number(job.revenue || 0),
+      0
+    );
+    const receivable = validJobs
+      .filter((job) => job.payment_status !== "paid")
+      .reduce((total, job) => total + Number(job.revenue || 0), 0);
+    const forecastCosts = validJobs.reduce(
+      (total, job) => total + totalCostForJob(job),
+      0
+    );
+
+    return {
+      jobs: validJobs.length,
+      forecastRevenue,
+      completedRevenue,
+      pendingRevenue,
+      receivable,
+      forecastCosts,
+      forecastMargin: forecastRevenue - forecastCosts,
+    };
+  }, [jobs]);
 
   const footballStats = useMemo(() => {
     const footballJobs = jobs.filter((job) => job.business_line === "futebol");
@@ -468,7 +496,7 @@ export default function JobsPage() {
   return (
     <WorkspaceLayout
       title="Trabalhos"
-      eyebrow="Histórico 2026"
+      eyebrow="Operação & previsão"
       actions={
         <button
           type="button"
@@ -481,14 +509,44 @@ export default function JobsPage() {
     >
       <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-5">
         <p className="text-white/45 max-w-2xl">
-          Começamos por 2026. Regista os trabalhos reais deste ano e só os dados que consegues recuperar sem esforço.
+          Acompanha o que já realizaste e o que está previsto, com faturação, custos e margem projetados para o período selecionado.
         </p>
         <div className="rounded-xl border border-white/10 px-4 py-2 text-sm text-white/55">
-          Ano: <span className="text-white font-medium">2026</span>
+          Vista: <span className="text-white font-medium">{periodLabel(periodFilter)}</span>
         </div>
       </div>
 
       <div className="mt-7 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-[10px] uppercase tracking-[0.16em] text-white/25">
+            Período
+          </span>
+          <FilterButton
+            active={periodFilter === "month"}
+            onClick={() => setPeriodFilter("month")}
+          >
+            Este mês
+          </FilterButton>
+          <FilterButton
+            active={periodFilter === "next_month"}
+            onClick={() => setPeriodFilter("next_month")}
+          >
+            Próximo mês
+          </FilterButton>
+          <FilterButton
+            active={periodFilter === "year"}
+            onClick={() => setPeriodFilter("year")}
+          >
+            2026
+          </FilterButton>
+          <FilterButton
+            active={periodFilter === "all"}
+            onClick={() => setPeriodFilter("all")}
+          >
+            Todos
+          </FilterButton>
+        </div>
+
         <div className="flex flex-wrap items-center gap-2">
           <span className="mr-1 text-[10px] uppercase tracking-[0.16em] text-white/25">
             Ramo
@@ -505,6 +563,42 @@ export default function JobsPage() {
               {line.icon} {line.name}
             </FilterButton>
           ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-[10px] uppercase tracking-[0.16em] text-white/25">
+            Estado
+          </span>
+          <FilterButton
+            active={statusFilter === "all"}
+            onClick={() => setStatusFilter("all")}
+          >
+            Todos
+          </FilterButton>
+          <FilterButton
+            active={statusFilter === "scheduled"}
+            onClick={() => setStatusFilter("scheduled")}
+          >
+            Agendados
+          </FilterButton>
+          <FilterButton
+            active={statusFilter === "in_progress"}
+            onClick={() => setStatusFilter("in_progress")}
+          >
+            Em curso
+          </FilterButton>
+          <FilterButton
+            active={statusFilter === "completed"}
+            onClick={() => setStatusFilter("completed")}
+          >
+            Realizados
+          </FilterButton>
+          <FilterButton
+            active={statusFilter === "cancelled"}
+            onClick={() => setStatusFilter("cancelled")}
+          >
+            Cancelados
+          </FilterButton>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -532,20 +626,63 @@ export default function JobsPage() {
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mt-7">
-        <Metric label="Trabalhos" value={String(jobs.length)} />
-        <Metric label="Receita" value={money(totals.revenue)} />
-        <Metric label="Custos totais" value={money(totals.costs)} />
-        <Metric label="Margem real" value={money(totals.revenue - totals.costs)} />
-        {lineFilter === "futebol" && (
-          <>
-            <Metric label="Equipas trabalhadas" value={String(footballStats.teams)} />
+      <div className="mt-7">
+        <div className="flex items-end justify-between gap-4 mb-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-white/25">
+              Forecast
+            </p>
+            <h2 className="font-semibold mt-1">{periodLabel(periodFilter)}</h2>
+          </div>
+          <p className="text-xs text-white/25">
+            Cancelados não entram na previsão
+          </p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <Metric
+            label="Trabalhos previstos"
+            value={String(forecast.jobs)}
+            hint="Não cancelados no período"
+          />
+          <Metric
+            label="Faturação prevista"
+            value={money(forecast.forecastRevenue)}
+            hint="Realizados + agendados"
+          />
+          <Metric
+            label="Já realizado"
+            value={money(forecast.completedRevenue)}
+            hint="Trabalhos marcados como realizados"
+          />
+          <Metric
+            label="Por realizar"
+            value={money(forecast.pendingRevenue)}
+            hint="Agendados e em curso"
+          />
+          <Metric
+            label="Por receber"
+            value={money(forecast.receivable)}
+            hint="Trabalhos ainda não marcados como pagos"
+          />
+          <Metric
+            label="Custos previstos"
+            value={money(forecast.forecastCosts)}
+            hint="Custos diretos + colaboradores"
+          />
+          <Metric
+            label="Margem prevista"
+            value={money(forecast.forecastMargin)}
+            hint="Faturação prevista − custos previstos"
+          />
+          {lineFilter === "futebol" && (
             <Metric
-              label="Presenças de jogadores"
-              value={String(footballStats.playerAppearances)}
+              label="Equipas no período"
+              value={String(footballStats.teams)}
+              hint={footballStats.playerAppearances + " presenças de jogadores"}
             />
-          </>
-        )}
+          )}
+        </div>
       </div>
 
       {error && (
@@ -569,11 +706,17 @@ export default function JobsPage() {
         ) : jobs.length === 0 ? (
           <div className="px-5 py-16 text-center">
             <p className="text-sm text-white/35">
-              {lineFilter !== "all" || paymentFilter !== "all"
+              {lineFilter !== "all" ||
+              paymentFilter !== "all" ||
+              statusFilter !== "all" ||
+              periodFilter !== "all"
                 ? "Nenhum trabalho corresponde aos filtros selecionados."
-                : "Ainda não tens trabalhos de 2026 registados."}
+                : "Ainda não tens trabalhos registados."}
             </p>
-            {lineFilter === "all" && paymentFilter === "all" && (
+            {lineFilter === "all" &&
+              paymentFilter === "all" &&
+              statusFilter === "all" &&
+              periodFilter === "all" && (
               <button
                 type="button"
                 onClick={openForm}
@@ -1107,11 +1250,12 @@ function FilterButton({ active, onClick, children }) {
   );
 }
 
-function Metric({ label, value }) {
+function Metric({ label, value, hint }) {
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
       <p className="text-sm text-white/40">{label}</p>
       <p className="mt-3 text-3xl font-semibold">{value}</p>
+      {hint && <p className="mt-2 text-xs text-white/25">{hint}</p>}
     </div>
   );
 }
@@ -1123,6 +1267,70 @@ function PaymentBadge({ value }) {
       {labels[value] || value}
     </span>
   );
+}
+
+function periodBounds(period) {
+  const now = new Date();
+
+  if (period === "month") {
+    return {
+      start: dateKey(new Date(now.getFullYear(), now.getMonth(), 1)),
+      end: dateKey(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+    };
+  }
+
+  if (period === "next_month") {
+    return {
+      start: dateKey(new Date(now.getFullYear(), now.getMonth() + 1, 1)),
+      end: dateKey(new Date(now.getFullYear(), now.getMonth() + 2, 0)),
+    };
+  }
+
+  if (period === "year") {
+    return { start: now.getFullYear() + "-01-01", end: now.getFullYear() + "-12-31" };
+  }
+
+  return { start: null, end: null };
+}
+
+function periodLabel(period) {
+  const now = new Date();
+
+  if (period === "month") {
+    return capitalize(
+      new Intl.DateTimeFormat("pt-PT", {
+        month: "long",
+        year: "numeric",
+      }).format(now)
+    );
+  }
+
+  if (period === "next_month") {
+    const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    return capitalize(
+      new Intl.DateTimeFormat("pt-PT", {
+        month: "long",
+        year: "numeric",
+      }).format(next)
+    );
+  }
+
+  if (period === "year") return String(now.getFullYear());
+  return "Todo o histórico";
+}
+
+function dateKey(date) {
+  return (
+    date.getFullYear() +
+    "-" +
+    String(date.getMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(date.getDate()).padStart(2, "0")
+  );
+}
+
+function capitalize(value) {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 }
 
 function statusForDate(value) {
