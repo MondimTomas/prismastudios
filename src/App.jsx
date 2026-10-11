@@ -29,6 +29,7 @@ import LookbookRetratos from "./pages/LookbookRetratos";
 import LookbookRestauracao from "./pages/LookbookRestauracao";
 import LookbookFestas from "./pages/LookbookFestas";
 import LookbookDesporto from "./pages/LookbookDesporto";
+import FootballFeedbackPage from "./pages/FootballFeedbackPage";
 
 import Login from "./private/pages/Login";
 import Dashboard from "./private/pages/Dashboard";
@@ -42,6 +43,7 @@ import CalendarPage from "./private/pages/CalendarPage";
 import JobsPage from "./private/pages/JobsPage";
 import FootballTeamPage from "./private/pages/FootballTeamPage";
 import TeamManagementPage from "./private/pages/TeamManagementPage";
+import FootballFeedbackAdminPage from "./private/pages/FootballFeedbackAdminPage";
 import ProtectedRoute from "./private/ProtectedRoute";
 import TeamDashboard from "./team/TeamDashboard";
 import TeamProfile from "./team/TeamProfile";
@@ -113,6 +115,10 @@ export default function App() {
       <Route path="/blog" element={<BlogPage />} />
       <Route path="/blog/:slug" element={<BlogPostPage />} />
       <Route path="/contactos" element={<ContactPage />} />
+      <Route
+        path="/avaliar/futebol/:token"
+        element={<FootballFeedbackPage />}
+      />
 
       <Route path="/tomasmondim/login" element={<Login />} />
 
@@ -131,6 +137,10 @@ export default function App() {
       <Route
         path="/tomasmondim/admin/trabalhos"
         element={<PrivatePage><JobsPage /></PrivatePage>}
+      />
+      <Route
+        path="/tomasmondim/admin/trabalhos/:jobId/avaliacoes"
+        element={<PrivatePage><FootballFeedbackAdminPage /></PrivatePage>}
       />
       <Route
         path="/tomasmondim/admin/futebol/equipas/:teamId"
