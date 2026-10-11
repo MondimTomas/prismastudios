@@ -94,17 +94,26 @@ export default function TeamDashboard() {
     }
 
     const assignmentRows = assignmentResult.data || [];
-    const jobIds = Array.from(
-      new Set(assignmentRows.map((item) => item.job_id).filter(Boolean))
+    const eligibleJobIds = Array.from(
+      new Set(
+        assignmentRows
+          .filter(
+            (item) =>
+              !["cancelled", "declined"].includes(item.status) &&
+              item.workspace_jobs?.status !== "cancelled"
+          )
+          .map((item) => item.job_id)
+          .filter(Boolean)
+      )
     );
 
     let feedbackRows = [];
 
-    if (jobIds.length > 0) {
+    if (eligibleJobIds.length > 0) {
       const feedbackResult = await supabase
         .from("workspace_football_feedback")
         .select("id,job_id,score,liked,disliked,created_at")
-        .in("job_id", jobIds)
+        .in("job_id", eligibleJobIds)
         .order("created_at", { ascending: false });
 
       if (feedbackResult.error) {
@@ -114,7 +123,9 @@ export default function TeamDashboard() {
             : feedbackResult.error.message
         );
       } else {
-        feedbackRows = feedbackResult.data || [];
+        feedbackRows = (feedbackResult.data || []).filter((item) =>
+          eligibleJobIds.includes(item.job_id)
+        );
       }
     }
 
