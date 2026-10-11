@@ -28,6 +28,7 @@ export default function JobsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [jobs, setJobs] = useState([]);
   const [fixedExpenses, setFixedExpenses] = useState([]);
+  const [recurringRevenue, setRecurringRevenue] = useState([]);
   const [feedbackForms, setFeedbackForms] = useState([]);
   const [feedbackRows, setFeedbackRows] = useState([]);
   const [copiedFeedbackJobId, setCopiedFeedbackJobId] = useState("");
@@ -74,11 +75,15 @@ export default function JobsPage() {
       query = query.eq("payment_status", paymentFilter);
     }
 
-    const [jobsResult, fixedResult, formsResult, feedbackResult] =
+    const [jobsResult, fixedResult, recurringResult, formsResult, feedbackResult] =
       await Promise.all([
         query,
         supabase
           .from("workspace_recurring_expenses")
+          .select("*")
+          .order("start_date", { ascending: true }),
+        supabase
+          .from("workspace_recurring_revenue")
           .select("*")
           .order("start_date", { ascending: true }),
         supabase
@@ -92,6 +97,7 @@ export default function JobsPage() {
     const loadError =
       jobsResult.error ||
       fixedResult.error ||
+      recurringResult.error ||
       formsResult.error ||
       feedbackResult.error;
 
@@ -101,6 +107,7 @@ export default function JobsPage() {
 
     setJobs(jobsResult.data || []);
     setFixedExpenses(fixedResult.data || []);
+    setRecurringRevenue(recurringResult.data || []);
     setFeedbackForms(formsResult.data || []);
     setFeedbackRows(feedbackResult.data || []);
     setLoading(false);
@@ -165,21 +172,35 @@ export default function JobsPage() {
     const completedJobs = validJobs.filter((job) => job.status === "completed");
     const pendingJobs = validJobs.filter((job) => job.status !== "completed");
 
-    const forecastRevenue = validJobs.reduce(
-      (total, job) => total + Number(job.revenue || 0),
-      0
-    );
+    const recurringFallback =
+      statusFilter === "all" && paymentFilter === "all"
+        ? missingRecurringRevenueForPeriod(
+            recurringRevenue,
+            validJobs,
+            periodFilter,
+            lineFilter
+          )
+        : { amount: 0, entries: 0 };
+
+    const forecastRevenue =
+      validJobs.reduce(
+        (total, job) => total + Number(job.revenue || 0),
+        0
+      ) + recurringFallback.amount;
     const completedRevenue = completedJobs.reduce(
       (total, job) => total + Number(job.revenue || 0),
       0
     );
-    const pendingRevenue = pendingJobs.reduce(
-      (total, job) => total + Number(job.revenue || 0),
-      0
-    );
-    const receivable = validJobs
-      .filter((job) => job.payment_status !== "paid")
-      .reduce((total, job) => total + Number(job.revenue || 0), 0);
+    const pendingRevenue =
+      pendingJobs.reduce(
+        (total, job) => total + Number(job.revenue || 0),
+        0
+      ) + recurringFallback.amount;
+    const receivable =
+      validJobs
+        .filter((job) => job.payment_status !== "paid")
+        .reduce((total, job) => total + Number(job.revenue || 0), 0) +
+      recurringFallback.amount;
     const jobCosts = validJobs.reduce(
       (total, job) => total + totalCostForJob(job),
       0
@@ -191,7 +212,7 @@ export default function JobsPage() {
     const forecastCosts = jobCosts + fixedCosts;
 
     return {
-      jobs: validJobs.length,
+      jobs: validJobs.length + recurringFallback.entries,
       forecastRevenue,
       completedRevenue,
       pendingRevenue,
@@ -201,7 +222,15 @@ export default function JobsPage() {
       forecastCosts,
       forecastMargin: forecastRevenue - forecastCosts,
     };
-  }, [jobs, fixedExpenses, lineFilter, periodFilter]);
+  }, [
+    jobs,
+    fixedExpenses,
+    recurringRevenue,
+    lineFilter,
+    paymentFilter,
+    periodFilter,
+    statusFilter,
+  ]);
 
   const footballStats = useMemo(() => {
     const footballJobs = jobs.filter((job) => job.business_line === "futebol");
@@ -1438,6 +1467,80 @@ function dateKey(date) {
 
 function capitalize(value) {
   return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+}
+
+function missingRecurringRevenueForPeriod(
+  contracts,
+  jobs,
+  period,
+  lineFilter
+) {
+  if (!contracts.length) return { amount: 0, entries: 0 };
+
+  const bounds = periodBounds(period);
+  const today = dateKey(new Date());
+  const contractStarts = contracts
+    .map((contract) => contract.start_date)
+    .filter(Boolean)
+    .sort();
+
+  const start = bounds.start || contractStarts[0];
+  const end = bounds.end || today;
+
+  if (!start || !end) return { amount: 0, entries: 0 };
+
+  const existing = new Set(
+    jobs
+      .filter((job) => job.status !== "cancelled" && job.job_date)
+      .map(
+        (job) =>
+          clientKey(job.client_name) + "|" + job.job_date.slice(0, 7)
+      )
+  );
+
+  const cursor = new Date(start + "T12:00:00");
+  cursor.setDate(1);
+  const endDate = new Date(end + "T12:00:00");
+
+  let amount = 0;
+  let entries = 0;
+
+  while (cursor <= endDate) {
+    const monthStart = dateKey(
+      new Date(cursor.getFullYear(), cursor.getMonth(), 1)
+    );
+    const monthEnd = dateKey(
+      new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0)
+    );
+    const monthKey = monthStart.slice(0, 7);
+
+    contracts.forEach((contract) => {
+      if (
+        lineFilter !== "all" &&
+        contract.business_line !== lineFilter
+      ) {
+        return;
+      }
+
+      if (!contract.active && !contract.end_date) return;
+      if (contract.start_date > monthEnd) return;
+      if (contract.end_date && contract.end_date < monthStart) return;
+
+      const key = clientKey(contract.client_name) + "|" + monthKey;
+      if (existing.has(key)) return;
+
+      amount += Number(contract.amount || 0);
+      entries += 1;
+    });
+
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+
+  return { amount, entries };
+}
+
+function clientKey(value) {
+  return String(value || "").trim().toLocaleLowerCase("pt-PT");
 }
 
 function recurringCostForPeriod(expenses, period, jobs) {
