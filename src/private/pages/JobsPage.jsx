@@ -28,6 +28,9 @@ export default function JobsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [jobs, setJobs] = useState([]);
   const [fixedExpenses, setFixedExpenses] = useState([]);
+  const [feedbackForms, setFeedbackForms] = useState([]);
+  const [feedbackRows, setFeedbackRows] = useState([]);
+  const [copiedFeedbackJobId, setCopiedFeedbackJobId] = useState("");
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,15 +74,26 @@ export default function JobsPage() {
       query = query.eq("payment_status", paymentFilter);
     }
 
-    const [jobsResult, fixedResult] = await Promise.all([
-      query,
-      supabase
-        .from("workspace_recurring_expenses")
-        .select("*")
-        .order("start_date", { ascending: true }),
-    ]);
+    const [jobsResult, fixedResult, formsResult, feedbackResult] =
+      await Promise.all([
+        query,
+        supabase
+          .from("workspace_recurring_expenses")
+          .select("*")
+          .order("start_date", { ascending: true }),
+        supabase
+          .from("workspace_football_feedback_forms")
+          .select("job_id,token,is_active"),
+        supabase
+          .from("workspace_football_feedback")
+          .select("id,job_id,score,created_at"),
+      ]);
 
-    const loadError = jobsResult.error || fixedResult.error;
+    const loadError =
+      jobsResult.error ||
+      fixedResult.error ||
+      formsResult.error ||
+      feedbackResult.error;
 
     if (loadError) {
       setError(loadError.message);
@@ -87,6 +101,8 @@ export default function JobsPage() {
 
     setJobs(jobsResult.data || []);
     setFixedExpenses(fixedResult.data || []);
+    setFeedbackForms(formsResult.data || []);
+    setFeedbackRows(feedbackResult.data || []);
     setLoading(false);
   }, [lineFilter, paymentFilter, periodFilter, statusFilter]);
 
@@ -492,6 +508,26 @@ export default function JobsPage() {
     }
   }
 
+  async function copyFeedbackLink(jobId) {
+    const form = feedbackForms.find((item) => item.job_id === jobId);
+    if (!form?.token) return;
+
+    const url =
+      "https://prismastudios.pt/avaliar/futebol/" + form.token;
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedFeedbackJobId(jobId);
+      window.setTimeout(() => {
+        setCopiedFeedbackJobId((current) =>
+          current === jobId ? "" : current
+        );
+      }, 1800);
+    } catch {
+      window.prompt("Copia este link:", url);
+    }
+  }
+
   async function deleteJob(id) {
     if (!window.confirm("Eliminar este trabalho?")) return;
 
@@ -764,6 +800,19 @@ export default function JobsPage() {
             const teamCost = collaboratorCostForJob(job);
             const totalCost = directCost + teamCost;
             const margin = Number(job.revenue || 0) - totalCost;
+            const feedbackForm = feedbackForms.find(
+              (item) => item.job_id === job.id
+            );
+            const jobFeedback = feedbackRows.filter(
+              (item) => item.job_id === job.id
+            );
+            const feedbackAverage =
+              jobFeedback.length > 0
+                ? jobFeedback.reduce(
+                    (sum, item) => sum + Number(item.score || 0),
+                    0
+                  ) / jobFeedback.length
+                : null;
 
             return (
               <div
@@ -838,6 +887,33 @@ export default function JobsPage() {
                   </select>
                 </div>
                 <div className="md:col-span-1 md:text-right">
+                  {job.business_line === "futebol" && feedbackForm && (
+                    <div className="mb-2 flex flex-col items-start md:items-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => copyFeedbackLink(job.id)}
+                        className="text-xs text-[#B89A84] hover:text-white transition"
+                      >
+                        {copiedFeedbackJobId === job.id
+                          ? "Link copiado ✓"
+                          : "Copiar avaliação"}
+                      </button>
+                      <Link
+                        to={
+                          "/tomasmondim/admin/trabalhos/" +
+                          job.id +
+                          "/avaliacoes"
+                        }
+                        className="text-xs text-white/35 hover:text-white transition"
+                      >
+                        {jobFeedback.length === 0
+                          ? "Avaliações"
+                          : feedbackAverage.toFixed(1) +
+                            "/10 · " +
+                            jobFeedback.length}
+                      </Link>
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => deleteJob(job.id)}
