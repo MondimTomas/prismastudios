@@ -515,8 +515,10 @@ export default function JobsPage() {
     const url =
       "https://prismastudios.pt/avaliar/futebol/" + form.token;
 
+    const message = feedbackShareMessage(url);
+
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(message);
       setCopiedFeedbackJobId(jobId);
       window.setTimeout(() => {
         setCopiedFeedbackJobId((current) =>
@@ -524,7 +526,7 @@ export default function JobsPage() {
         );
       }, 1800);
     } catch {
-      window.prompt("Copia este link:", url);
+      window.prompt("Copia esta mensagem:", message);
     }
   }
 
@@ -1515,6 +1517,20 @@ function collaboratorCostForJob(job) {
 
 function totalCostForJob(job) {
   return Number(job.costs || 0) + collaboratorCostForJob(job);
+}
+
+function feedbackShareMessage(url) {
+  return [
+    "Para continuarmos a melhorar, deixo aqui um link para avaliarem o nosso trabalho 🙌",
+    "",
+    "Podem dar uma nota e, se quiserem, acrescentar o que mais gostaram e também alguns pontos que acham que podemos melhorar.",
+    "",
+    "O objetivo é perceber melhor o que valorizam para conseguirmos fazer fotos cada vez melhores para vocês ao longo da época.",
+    "",
+    "Partilha também o link com os teus colegas de equipa, por favor, para conseguirmos ter o feedback de mais jogadores.",
+    "",
+    url,
+  ].join("\n");
 }
 
 function money(value) {
