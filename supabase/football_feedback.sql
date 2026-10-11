@@ -66,6 +66,22 @@ using (
   )
 );
 
+drop policy if exists "football_feedback_assigned_collaborator_select"
+  on public.workspace_football_feedback;
+create policy "football_feedback_assigned_collaborator_select"
+on public.workspace_football_feedback
+for select
+to authenticated
+using (
+  exists (
+    select 1
+    from public.collaborator_assignments ca
+    where ca.job_id = workspace_football_feedback.job_id
+      and ca.collaborator_user_id = (select auth.uid())
+      and ca.status not in ('cancelled', 'declined')
+  )
+);
+
 drop policy if exists "football_feedback_owner_delete"
   on public.workspace_football_feedback;
 create policy "football_feedback_owner_delete"
