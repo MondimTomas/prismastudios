@@ -76,12 +76,14 @@ export default function FootballFeedbackAdminPage() {
   async function copyLink() {
     if (!publicUrl) return;
 
+    const message = feedbackShareMessage(publicUrl);
+
     try {
-      await navigator.clipboard.writeText(publicUrl);
+      await navigator.clipboard.writeText(message);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      window.prompt("Copia este link:", publicUrl);
+      window.prompt("Copia esta mensagem:", message);
     }
   }
 
@@ -246,6 +248,20 @@ function FeedbackText({ label, value, empty }) {
       </p>
     </div>
   );
+}
+
+function feedbackShareMessage(url) {
+  return [
+    "Para continuarmos a melhorar, deixo aqui um link para avaliarem o nosso trabalho 🙌",
+    "",
+    "Podem dar uma nota e, se quiserem, acrescentar o que mais gostaram e também alguns pontos que acham que podemos melhorar.",
+    "",
+    "O objetivo é perceber melhor o que valorizam para conseguirmos fazer fotos cada vez melhores para vocês ao longo da época.",
+    "",
+    "Partilha também o link com os teus colegas de equipa, por favor, para conseguirmos ter o feedback de mais jogadores.",
+    "",
+    url,
+  ].join("\n");
 }
 
 function formatDate(value) {
