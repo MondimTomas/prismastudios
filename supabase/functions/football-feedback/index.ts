@@ -38,6 +38,15 @@ function cleanOptionalText(value: unknown) {
   return trimmed ? trimmed.slice(0, 1500) : null;
 }
 
+async function deviceHash(jobId: string, deviceId: string) {
+  const payload = new TextEncoder().encode(jobId + ":" + deviceId);
+  const digest = await crypto.subtle.digest("SHA-256", payload);
+
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders(req) });
@@ -62,9 +71,15 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const action = body?.action;
     const token = typeof body?.token === "string" ? body.token.trim() : "";
+    const deviceId =
+      typeof body?.device_id === "string" ? body.device_id.trim() : "";
 
     if (!token) {
       return json(req, { error: "Link de avaliação inválido." }, 400);
+    }
+
+    if (!deviceId || deviceId.length < 8 || deviceId.length > 200) {
+      return json(req, { error: "Não foi possível validar este dispositivo." }, 400);
     }
 
     const { data: form, error: formError } = await admin
@@ -107,7 +122,21 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const hashedDevice = await deviceHash(job.id, deviceId);
+
     if (action === "get") {
+      const { data: existingFeedback, error: existingError } = await admin
+        .from("workspace_football_feedback")
+        .select("id")
+        .eq("job_id", job.id)
+        .eq("device_hash", hashedDevice)
+        .maybeSingle();
+
+      if (existingError) {
+        console.error("feedback duplicate check failed", existingError);
+        return json(req, { error: "Não foi possível abrir a avaliação." }, 500);
+      }
+
       return json(req, {
         job: {
           id: job.id,
@@ -117,6 +146,7 @@ Deno.serve(async (req: Request) => {
           job_date: job.job_date,
           can_submit: job.job_date <= new Date().toISOString().slice(0, 10),
         },
+        already_submitted: Boolean(existingFeedback),
       });
     }
 
@@ -139,6 +169,7 @@ Deno.serve(async (req: Request) => {
         .from("workspace_football_feedback")
         .insert({
           job_id: job.id,
+          device_hash: hashedDevice,
           score,
           liked: cleanOptionalText(body?.liked),
           disliked: cleanOptionalText(body?.disliked),
@@ -147,6 +178,18 @@ Deno.serve(async (req: Request) => {
         .single();
 
       if (insertError) {
+        if (insertError.code === "23505") {
+          return json(
+            req,
+            {
+              error:
+                "Já foi enviada uma avaliação deste dispositivo para este jogo.",
+              already_submitted: true,
+            },
+            409
+          );
+        }
+
         console.error("feedback insert failed", insertError);
         return json(req, { error: "Não foi possível enviar a avaliação." }, 500);
       }
