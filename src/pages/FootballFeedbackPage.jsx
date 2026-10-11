@@ -11,6 +11,7 @@ export default function FootballFeedbackPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -21,12 +22,17 @@ export default function FootballFeedbackPage() {
       setError("");
 
       try {
+        const deviceId = getDeviceId();
         const data = await invokeFeedback({
           action: "get",
           token,
+          device_id: deviceId,
         });
 
-        if (active) setJob(data.job);
+        if (active) {
+          setJob(data.job);
+          setAlreadySubmitted(Boolean(data.already_submitted));
+        }
       } catch (loadError) {
         if (active) {
           setError(loadError.message || "Este link de avaliação não está disponível.");
@@ -57,11 +63,13 @@ export default function FootballFeedbackPage() {
       await invokeFeedback({
         action: "submit",
         token,
+        device_id: getDeviceId(),
         score,
         liked,
         disliked,
       });
       setSubmitted(true);
+      setAlreadySubmitted(true);
     } catch (submitError) {
       setError(submitError.message || "Não foi possível enviar a avaliação.");
     } finally {
@@ -100,7 +108,21 @@ export default function FootballFeedbackPage() {
             </p>
             <h2 className="mt-2 text-2xl font-semibold">Avaliação enviada.</h2>
             <p className="mt-3 text-white/45 leading-7">
-              O teu feedback ajuda-nos a melhorar a cobertura dos próximos jogos.
+              Obrigado pelo teu feedback. Vamos fazer o máximo para melhorar ao
+              longo da época e esperamos voltar a trabalhar juntos em breve.
+            </p>
+          </Card>
+        ) : alreadySubmitted ? (
+          <Card>
+            <p className="text-xs uppercase tracking-[0.2em] text-[#B89A84]">
+              Obrigado
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold">
+              Já enviaste a tua avaliação.
+            </h2>
+            <p className="mt-3 text-white/45 leading-7">
+              Obrigado pelo teu feedback. Vamos fazer o máximo para melhorar ao
+              longo da época e esperamos voltar a trabalhar juntos em breve.
             </p>
           </Card>
         ) : (
@@ -202,8 +224,8 @@ export default function FootballFeedbackPage() {
                 </button>
 
                 <p className="text-center text-xs leading-5 text-white/20">
-                  Podem existir várias avaliações para o mesmo jogo. Cada resposta
-                  é guardada separadamente e continua anónima.
+                  Pode existir uma avaliação por browser/dispositivo para este
+                  jogo. A resposta continua anónima.
                 </p>
               </form>
             )}
@@ -239,6 +261,33 @@ async function invokeFeedback(body) {
   }
 
   throw new Error(message || "Não foi possível comunicar com o formulário.");
+}
+
+function getDeviceId() {
+  const storageKey = "prisma_football_feedback_device_id";
+
+  try {
+    const existing = window.localStorage.getItem(storageKey);
+    if (existing) return existing;
+
+    const created =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : "device-" +
+          Date.now().toString(36) +
+          "-" +
+          Math.random().toString(36).slice(2);
+
+    window.localStorage.setItem(storageKey, created);
+    return created;
+  } catch {
+    return (
+      "session-" +
+      Date.now().toString(36) +
+      "-" +
+      Math.random().toString(36).slice(2)
+    );
+  }
 }
 
 function formatDate(value) {
