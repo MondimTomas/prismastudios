@@ -15,6 +15,7 @@ create table if not exists public.workspace_football_feedback_forms (
 create table if not exists public.workspace_football_feedback (
   id uuid primary key default gen_random_uuid(),
   job_id uuid not null references public.workspace_jobs(id) on delete cascade,
+  device_hash text,
   score smallint not null check (score between 0 and 10),
   liked text,
   disliked text,
@@ -27,6 +28,10 @@ create table if not exists public.workspace_football_feedback (
 
 create index if not exists workspace_football_feedback_job_id_idx
   on public.workspace_football_feedback(job_id);
+
+create unique index if not exists workspace_football_feedback_job_device_uidx
+  on public.workspace_football_feedback(job_id, device_hash)
+  where device_hash is not null;
 
 alter table public.workspace_football_feedback_forms enable row level security;
 alter table public.workspace_football_feedback enable row level security;
