@@ -563,7 +563,9 @@ function UpcomingCard({
           <h3 className="text-lg font-semibold mt-1">{job?.client_name}</h3>
           <p className="text-sm text-white/40 mt-1">{job?.title}</p>
 
-          <JobDetails job={job} />\n\n          {assignment.notes && (
+          <JobDetails job={job} />
+
+          {assignment.notes && (
             <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
               <p className="text-[10px] uppercase tracking-[0.16em] text-white/25">
                 Informação para ti
@@ -615,7 +617,9 @@ function HistoryCard({ assignment, rating }) {
           <h3 className="mt-1 text-lg font-semibold">{job?.client_name}</h3>
           <p className="mt-1 text-sm text-white/35">{job?.title}</p>
 
-          <JobDetails job={job} />\n\n          <div className="mt-4 flex flex-wrap gap-2">
+          <JobDetails job={job} />
+
+          <div className="mt-4 flex flex-wrap gap-2">
             <Status value={assignment.status} />
             {job?.business_line === "futebol" &&
               (rating.count > 0 ? (
@@ -640,8 +644,8 @@ function HistoryCard({ assignment, rating }) {
 function JobDetails({ job }) {
   if (!job) return null;
   const notes = (job.notes || "").replaceAll(String.fromCharCode(92) + "n", " ").trim();
-  const location = notes.match(/(?:Localização|Local|Campo|Morada):\\s*([^\\n]+)/i)?.[1]?.trim();
-  const time = notes.match(/(?:Hora|Início|Inicio):\\s*([0-2]?\\d[:h][0-5]\\d)/i)?.[1];
+  const location = notes.match(/(?:Localização|Local|Campo|Morada):\s*([^\n]+)/i)?.[1]?.trim();
+  const time = notes.match(/(?:Hora|Início|Inicio):\s*([0-2]?\d[:h][0-5]\d)/i)?.[1];
   const zerozero = job.football_teams?.zerozero_url;
   const validZerozero = zerozero && zerozero.startsWith("https://www.zerozero.pt/");
   if (!notes && !validZerozero && !job.football_teams) return null;
