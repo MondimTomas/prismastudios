@@ -643,7 +643,7 @@ function JobDetails({ job }) {
   const location = notes.match(/(?:Localização|Local|Campo|Morada):\\s*([^\\n]+)/i)?.[1]?.trim();
   const time = notes.match(/(?:Hora|Início|Inicio):\\s*([0-2]?\\d[:h][0-5]\\d)/i)?.[1];
   const zerozero = job.football_teams?.zerozero_url;
-  const validZerozero = zerozero && /^https:\\/\\/(www\\.)?zerozero\\.pt\\//i.test(zerozero);
+  const validZerozero = zerozero && zerozero.startsWith("https://www.zerozero.pt/");
   if (!notes && !validZerozero && !job.football_teams) return null;
   return (
     <div className="mt-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 space-y-2 text-sm">
