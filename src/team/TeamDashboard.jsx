@@ -72,7 +72,7 @@ export default function TeamDashboard() {
       supabase
         .from("collaborator_assignments")
         .select(
-          "id,job_id,role,fee_amount,travel_reimbursement,notes,status,created_at,updated_at, workspace_jobs(id,business_line,client_name,title,service_type,job_date,status)"
+          "id,job_id,role,fee_amount,travel_reimbursement,notes,status,created_at,updated_at, workspace_jobs(id,business_line,client_name,title,service_type,job_date,status,notes,football_teams(name,season,zerozero_url))"
         )
         .eq("collaborator_user_id", targetUserId)
         .order("created_at", { ascending: false }),
@@ -563,7 +563,7 @@ function UpcomingCard({
           <h3 className="text-lg font-semibold mt-1">{job?.client_name}</h3>
           <p className="text-sm text-white/40 mt-1">{job?.title}</p>
 
-          {assignment.notes && (
+          <JobDetails job={job} />\n\n          {assignment.notes && (
             <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
               <p className="text-[10px] uppercase tracking-[0.16em] text-white/25">
                 Informação para ti
@@ -615,7 +615,7 @@ function HistoryCard({ assignment, rating }) {
           <h3 className="mt-1 text-lg font-semibold">{job?.client_name}</h3>
           <p className="mt-1 text-sm text-white/35">{job?.title}</p>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <JobDetails job={job} />\n\n          <div className="mt-4 flex flex-wrap gap-2">
             <Status value={assignment.status} />
             {job?.business_line === "futebol" &&
               (rating.count > 0 ? (
@@ -637,6 +637,25 @@ function HistoryCard({ assignment, rating }) {
   );
 }
 
+function JobDetails({ job }) {
+  if (!job) return null;
+  const notes = job.notes || "";
+  const location = notes.match(/(?:Localização|Local|Campo|Morada):\\s*([^\\n]+)/i)?.[1]?.trim();
+  const time = notes.match(/(?:Hora|Início|Inicio):\\s*([0-2]?\\d[:h][0-5]\\d)/i)?.[1];
+  const zerozero = job.football_teams?.zerozero_url;
+  const validZerozero = zerozero && /^https:\\/\\/(www\\.)?zerozero\\.pt\\//i.test(zerozero);
+  if (!notes && !validZerozero && !job.football_teams) return null;
+  return (
+    <div className="mt-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 space-y-2 text-sm">
+      {job.football_teams?.name && <p><span className="text-white/40">Equipa:</span> {job.football_teams.name}{job.football_teams.season ? " · " + job.football_teams.season : ""}</p>}
+      {time && <p><span className="text-white/40">Hora:</span> {time.replace("h", ":")}</p>}
+      {location && <p><span className="text-white/40">Localização:</span> {location} · <a className="text-[#D8C3B4] underline" href={"https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(location)} target="_blank" rel="noopener noreferrer">Abrir no Maps ↗</a></p>}
+      {validZerozero && <p><a className="text-[#D8C3B4] underline" href={zerozero} target="_blank" rel="noopener noreferrer">Ver equipa no Zerozero ↗</a></p>}
+      {notes && <p className="whitespace-pre-wrap text-white/45">{notes}</p>}
+    </div>
+  );
+}
+
 function Payment({ assignment, compact = false }) {
   const total =
     Number(assignment.fee_amount || 0) +
@@ -645,7 +664,7 @@ function Payment({ assignment, compact = false }) {
   return (
     <div className="lg:text-right shrink-0">
       <p className="text-[10px] uppercase tracking-[0.16em] text-white/25">
-        Teu pagamento
+        Pagamento
       </p>
       <p className={compact ? "text-xl font-semibold mt-1" : "text-2xl font-semibold mt-1"}>
         {money(total)}
