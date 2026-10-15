@@ -639,7 +639,7 @@ function HistoryCard({ assignment, rating }) {
 
 function JobDetails({ job }) {
   if (!job) return null;
-  const notes = job.notes || "";
+  const notes = (job.notes || "").replaceAll(String.fromCharCode(92) + "n", " ").trim();
   const location = notes.match(/(?:Localização|Local|Campo|Morada):\\s*([^\\n]+)/i)?.[1]?.trim();
   const time = notes.match(/(?:Hora|Início|Inicio):\\s*([0-2]?\\d[:h][0-5]\\d)/i)?.[1];
   const zerozero = job.football_teams?.zerozero_url;
