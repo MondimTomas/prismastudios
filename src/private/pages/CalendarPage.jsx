@@ -18,7 +18,7 @@ export default function CalendarPage() {
 
     const { data, error: loadError } = await supabase
       .from("workspace_jobs")
-      .select("*, football_teams(id,name,season,zerozero_url), collaborator_assignments(id,status,role,fee_amount,travel_reimbursement,collaborator_user_id,collaborator_profiles:collaborator_user_id(full_name))")
+      .select("*, football_teams(id,name,season,zerozero_url), collaborator_assignments(id,status,role,fee_amount,travel_reimbursement,collaborator_user_id)")
       .order("job_date", { ascending: true });
 
     if (loadError) {
@@ -233,7 +233,7 @@ export default function CalendarPage() {
               <p><span className="text-white/40">Faturação:</span> {Number(selectedJob.revenue || 0).toLocaleString("pt-PT", {style:"currency",currency:"EUR"})}</p>
               <p><span className="text-white/40">Equipa:</span> {selectedJob.football_teams?.name || "—"}</p>
               {selectedJob.football_teams?.zerozero_url?.startsWith("https://www.zerozero.pt/") && <a href={selectedJob.football_teams.zerozero_url} target="_blank" rel="noopener noreferrer" className="block text-[#D8C3B4] underline">Ver no Zerozero ↗</a>}
-              {(selectedJob.collaborator_assignments || []).map((assignment) => <p key={assignment.id}><span className="text-white/40">Colaborador:</span> {assignment.collaborator_profiles?.full_name || assignment.role} · {assignment.status} · {Number(assignment.fee_amount || 0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</p>)}
+              {(selectedJob.collaborator_assignments || []).map((assignment) => <p key={assignment.id}><span className="text-white/40">Colaborador:</span> {assignment.role} · {assignment.status} · {Number(assignment.fee_amount || 0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</p>)}
               {selectedJob.notes && <div className="rounded-xl border border-white/10 p-4"><p className="mb-2 text-xs text-white/40">Notas e localização</p><p className="whitespace-pre-wrap text-white/70">{selectedJob.notes}</p></div>}
             </div>
           </section>
