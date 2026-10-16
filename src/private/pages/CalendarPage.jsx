@@ -10,6 +10,7 @@ export default function CalendarPage() {
   const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedJob, setSelectedJob] = useState(null);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -17,7 +18,7 @@ export default function CalendarPage() {
 
     const { data, error: loadError } = await supabase
       .from("workspace_jobs")
-      .select("*, football_teams(id,name,season), collaborator_assignments(id,status,role,collaborator_user_id)")
+      .select("*, football_teams(id,name,season,zerozero_url), collaborator_assignments(id,status,role,fee_amount,travel_reimbursement,collaborator_user_id,collaborator_profiles:collaborator_user_id(full_name))")
       .order("job_date", { ascending: true });
 
     if (loadError) {
@@ -143,7 +144,9 @@ export default function CalendarPage() {
                     const tone = calendarTone(job);
 
                     return (
-                      <div
+                      <button
+                        type="button"
+                        onClick={() => setSelectedJob(job)}
                         key={job.id}
                         title={
                           (job.football_teams?.name || job.client_name) +
@@ -158,7 +161,7 @@ export default function CalendarPage() {
                         }
                       >
                         {line?.icon} {job.football_teams?.name || job.client_name}
-                      </div>
+                      </button>
                     );
                   })}
                   {dayJobs.length > 3 && (
@@ -190,7 +193,9 @@ export default function CalendarPage() {
               const tone = calendarTone(job);
 
               return (
-                <div
+                <button
+                  type="button"
+                  onClick={() => setSelectedJob(job)}
                   key={job.id}
                   className={
                     "flex items-center justify-between gap-4 rounded-xl border px-4 py-3 " +
@@ -208,12 +213,32 @@ export default function CalendarPage() {
                   <span className="text-xs opacity-70 shrink-0">
                     {formatDate(job.job_date)}
                   </span>
-                </div>
+                </button>
               );
             })}
           </div>
         )}
       </div>
+      {selectedJob && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" onClick={() => setSelectedJob(null)}>
+          <section role="dialog" aria-modal="true" aria-label="Detalhes do trabalho" onClick={(event) => event.stopPropagation()} className="w-full max-w-xl max-h-[85vh] overflow-y-auto rounded-2xl border border-white/15 bg-[#1b1b1b] p-6 text-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div><p className="text-xs text-[#B89A84]">{formatDate(selectedJob.job_date)}</p><h2 className="mt-2 text-xl font-semibold">{selectedJob.title || selectedJob.client_name}</h2><p className="mt-1 text-sm text-white/50">{selectedJob.client_name}</p></div>
+              <button type="button" onClick={() => setSelectedJob(null)} className="rounded-lg border border-white/15 px-3 py-2 text-sm">Fechar ✕</button>
+            </div>
+            <div className="mt-6 space-y-3 text-sm">
+              <p><span className="text-white/40">Serviço:</span> {selectedJob.service_type || "—"}</p>
+              <p><span className="text-white/40">Estado:</span> {selectedJob.status}</p>
+              <p><span className="text-white/40">Pagamento do cliente:</span> {selectedJob.payment_status === "paid" ? "Pago" : "Por pagar"}</p>
+              <p><span className="text-white/40">Faturação:</span> {Number(selectedJob.revenue || 0).toLocaleString("pt-PT", {style:"currency",currency:"EUR"})}</p>
+              <p><span className="text-white/40">Equipa:</span> {selectedJob.football_teams?.name || "—"}</p>
+              {selectedJob.football_teams?.zerozero_url?.startsWith("https://www.zerozero.pt/") && <a href={selectedJob.football_teams.zerozero_url} target="_blank" rel="noopener noreferrer" className="block text-[#D8C3B4] underline">Ver no Zerozero ↗</a>}
+              {(selectedJob.collaborator_assignments || []).map((assignment) => <p key={assignment.id}><span className="text-white/40">Colaborador:</span> {assignment.collaborator_profiles?.full_name || assignment.role} · {assignment.status} · {Number(assignment.fee_amount || 0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</p>)}
+              {selectedJob.notes && <div className="rounded-xl border border-white/10 p-4"><p className="mb-2 text-xs text-white/40">Notas e localização</p><p className="whitespace-pre-wrap text-white/70">{selectedJob.notes}</p></div>}
+            </div>
+          </section>
+        </div>
+      )}
     </WorkspaceLayout>
   );
 }
