@@ -589,7 +589,7 @@ function buildStats({
     (job) =>
       job.status !== "cancelled" &&
       job.job_date &&
-      job.job_date <= today &&
+
       (!lineId || job.business_line === lineId)
   );
 
@@ -781,7 +781,7 @@ function periodRange(period) {
   if (period === "month") {
     return {
       start: dateKey(new Date(now.getFullYear(), now.getMonth(), 1)),
-      end: today,
+      end: dateKey(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
       label: new Intl.DateTimeFormat("pt-PT", {
         month: "long",
         year: "numeric",
@@ -792,15 +792,15 @@ function periodRange(period) {
   if (period === "all") {
     return {
       start: null,
-      end: today,
-      label: "Todo o histórico até hoje",
+      end: null,
+      label: "Todo o histórico e trabalhos previstos",
     };
   }
 
   return {
     start: now.getFullYear() + "-01-01",
-    end: today,
-    label: now.getFullYear() + " até hoje",
+    end: dateKey(new Date(now.getFullYear(), 11, 31)),
+    label: now.getFullYear() + " realizado e previsto",
   };
 }
 
