@@ -36,6 +36,7 @@ export default function CalendarPage() {
   }, [loadJobs]);
 
   const calendarDays = useMemo(() => buildCalendarDays(cursor), [cursor]);
+  const todayKey = toDateKey(new Date());
 
   const jobsByDate = useMemo(() => {
     const map = new Map();
@@ -82,6 +83,7 @@ export default function CalendarPage() {
           </div>
 
           <div className="flex items-center gap-2 text-sm text-white/35">
+          <button type="button" onClick={() => setCursor(startOfMonth(new Date()))} className="rounded-xl border border-white/20 px-3 py-2 text-white hover:bg-white/10">Hoje</button>
           <button
             type="button"
             onClick={() => moveMonth(-1)}
@@ -128,14 +130,15 @@ export default function CalendarPage() {
           {calendarDays.map(({ date, inMonth }) => {
             const dateKey = toDateKey(date);
             const dayJobs = jobsByDate.get(dateKey) || [];
+            const isToday = dateKey === todayKey;
 
             return (
               <div
                 key={dateKey}
-                className="min-h-28 border-r border-b border-white/[0.05] p-2 overflow-hidden"
+                className={"min-h-28 border-r border-b p-2 overflow-hidden " + (isToday ? "border-[#D8C3B4]/60 bg-[#B89A84]/[0.14] ring-2 ring-inset ring-[#D8C3B4]/70" : "border-white/[0.05]")}
               >
-                <span className={inMonth ? "text-xs text-white/40" : "text-xs text-white/10"}>
-                  {date.getDate()}
+                <span className={isToday ? "inline-flex items-center gap-1 rounded-full bg-[#D8C3B4] px-2 py-1 text-xs font-bold text-[#191919]" : inMonth ? "text-xs text-white/40" : "text-xs text-white/10"}>
+                  {date.getDate()}{isToday && <span className="text-[9px] uppercase">Hoje</span>}
                 </span>
 
                 <div className="mt-2 space-y-1">
