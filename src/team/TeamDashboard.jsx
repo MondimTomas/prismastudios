@@ -568,7 +568,7 @@ function UpcomingCard({
           {assignment.notes && (
             <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
               <p className="text-[10px] uppercase tracking-[0.16em] text-white/25">
-                Informação para ti
+                Notas do trabalho
               </p>
               <p className="text-sm text-white/45 mt-2 whitespace-pre-wrap">
                 {assignment.notes}
@@ -583,16 +583,18 @@ function UpcomingCard({
       <div className="mt-4 pt-4 border-t border-white/[0.06] flex flex-wrap gap-2">
         <Status value={assignment.status} />
 
-        {!previewMode && assignment.status === "assigned" && (
+        {assignment.status === "assigned" && (
           <>
             <button
               onClick={() => onStatusChange(assignment.id, "accepted")}
+              disabled={previewMode}
               className="rounded-lg bg-[#B89A84] px-3 py-2 text-xs font-semibold text-[#151515]"
             >
               Aceitar
             </button>
             <button
               onClick={() => onStatusChange(assignment.id, "declined")}
+              disabled={previewMode}
               className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white/45 hover:text-white"
             >
               Não consigo
