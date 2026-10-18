@@ -11,6 +11,7 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedJob, setSelectedJob] = useState(null);
+  const [selectedDay, setSelectedDay] = useState(() => toDateKey(new Date()));
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -64,7 +65,7 @@ export default function CalendarPage() {
   }, [jobs]);
 
   function moveMonth(offset) {
-    setCursor((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
+    setCursor((current) => { const next = new Date(current.getFullYear(), current.getMonth() + offset, 1); setSelectedDay(toDateKey(next)); return next; });
   }
 
   return (
@@ -83,7 +84,7 @@ export default function CalendarPage() {
           </div>
 
           <div className="flex items-center gap-2 text-sm text-white/35">
-          <button type="button" onClick={() => setCursor(startOfMonth(new Date()))} className="rounded-xl border border-white/20 px-3 py-2 text-white hover:bg-white/10">Hoje</button>
+          <button type="button" onClick={() => { setCursor(startOfMonth(new Date())); setSelectedDay(toDateKey(new Date())); }} className="rounded-xl border border-white/20 px-3 py-2 text-white hover:bg-white/10">Hoje</button>
           <button
             type="button"
             onClick={() => moveMonth(-1)}
@@ -119,7 +120,7 @@ export default function CalendarPage() {
           {dayLabels.map((day) => (
             <div
               key={day}
-              className="px-3 py-3 text-center text-[10px] uppercase tracking-[0.18em] text-white/30"
+              className="px-0.5 py-3 text-center text-[10px] uppercase tracking-[0.08em] sm:tracking-[0.18em] text-white/30"
             >
               {day}
             </div>
@@ -135,13 +136,17 @@ export default function CalendarPage() {
             return (
               <div
                 key={dateKey}
-                className={"min-h-28 border-r border-b p-2 overflow-hidden " + (isToday ? "border-[#D8C3B4]/60 bg-[#B89A84]/[0.14] ring-2 ring-inset ring-[#D8C3B4]/70" : "border-white/[0.05]")}
+                className={"min-w-0 min-h-16 sm:min-h-28 border-r border-b p-1 sm:p-2 overflow-hidden " + (isToday ? "border-[#D8C3B4]/60 bg-[#B89A84]/[0.14] ring-2 ring-inset ring-[#D8C3B4]/70" : "border-white/[0.05]")}
               >
-                <span className={isToday ? "inline-flex items-center gap-1 rounded-full bg-[#D8C3B4] px-2 py-1 text-xs font-bold text-[#191919]" : inMonth ? "text-xs text-white/40" : "text-xs text-white/10"}>
-                  {date.getDate()}{isToday && <span className="text-[9px] uppercase">Hoje</span>}
+                <span className={isToday ? "inline-flex items-center gap-1 rounded-full bg-[#D8C3B4] px-1 sm:px-2 py-1 text-xs font-bold text-[#191919]" : inMonth ? "text-xs text-white/40" : "text-xs text-white/10"}>
+                  {date.getDate()}{isToday && <span className="hidden sm:inline text-[9px] uppercase">Hoje</span>}
                 </span>
 
-                <div className="mt-2 space-y-1">
+                <button type="button" aria-label={dateKey + ": " + dayJobs.length + " trabalhos"} aria-pressed={selectedDay === dateKey} onClick={() => { setSelectedDay(dateKey); if (!inMonth) setCursor(startOfMonth(date)); }} className={"sm:hidden mt-1 flex min-h-7 w-full flex-wrap content-start justify-center gap-1 rounded-md px-0.5 py-1 " + (selectedDay === dateKey ? "bg-[#B89A84]/25 ring-1 ring-[#D8C3B4]/60" : "")}>
+                  {dayJobs.slice(0, 4).map((job) => <span key={job.id} className={"h-1.5 w-1.5 rounded-full " + (calendarTone(job).label === "Por confirmar" ? "bg-red-400" : calendarTone(job).label === "Produção por colaborador" ? "bg-sky-400" : "bg-emerald-400")} />)}
+                  {dayJobs.length > 4 && <span className="text-[9px] leading-none text-white/50">+{dayJobs.length - 4}</span>}
+                </button>
+                <div className="hidden sm:block mt-2 space-y-1">
                   {dayJobs.slice(0, 3).map((job) => {
                     const line = businessLines.find((item) => item.id === job.business_line);
                     const tone = calendarTone(job);
@@ -176,6 +181,22 @@ export default function CalendarPage() {
           })}
         </div>
       </div>
+
+      <section className="sm:hidden mt-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-white capitalize">{new Intl.DateTimeFormat("pt-PT", { weekday: "long", day: "numeric", month: "long" }).format(parseDate(selectedDay))}</h2>
+          <span className="shrink-0 text-xs text-white/45">{(jobsByDate.get(selectedDay) || []).length} trabalhos</span>
+        </div>
+        <div className="mt-3 space-y-2">
+          {(jobsByDate.get(selectedDay) || []).length === 0 ? <p className="py-4 text-sm text-white/40">Sem trabalhos neste dia.</p> : (jobsByDate.get(selectedDay) || []).map((job) => {
+            const tone = calendarTone(job);
+            const line = businessLines.find((item) => item.id === job.business_line);
+            return <button key={job.id} type="button" onClick={() => setSelectedJob(job)} className={"w-full min-w-0 rounded-xl border p-3 text-left " + tone.className}>
+              <div className="flex items-start gap-2"><span className="shrink-0">{line?.icon}</span><div className="min-w-0 flex-1"><p className="break-words text-sm font-medium">{job.football_teams?.name || job.client_name || job.title}</p><p className="mt-1 break-words text-xs opacity-70">{job.title}</p><p className="mt-1 text-[11px] opacity-60">{tone.label}</p></div><span className="shrink-0 text-white/50">›</span></div>
+            </button>;
+          })}
+        </div>
+      </section>
 
       <div className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
         <p className="text-[10px] uppercase tracking-[0.2em] text-white/30">
