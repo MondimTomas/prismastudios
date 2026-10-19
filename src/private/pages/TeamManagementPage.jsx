@@ -101,6 +101,30 @@ export default function TeamManagementPage() {
     await load();
   }
 
+  async function updateAssignmentFee(assignment) {
+    const input = window.prompt("Pagamento ao colaborador (€)", String(assignment.fee_amount ?? 0));
+    if (input === null) return;
+    const amount = Number(input.replace(",", "."));
+    if (!Number.isFinite(amount) || amount < 0) {
+      setError("Indica um valor válido igual ou superior a zero.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    const { data, error: updateError } = await supabase
+      .from("collaborator_assignments")
+      .update({ fee_amount: amount })
+      .eq("id", assignment.id)
+      .select("id,fee_amount")
+      .single();
+    setSaving(false);
+    if (updateError || !data || Number(data.fee_amount) !== amount) {
+      setError(updateError?.message || "Não foi possível confirmar a atualização do pagamento.");
+      return;
+    }
+    await load();
+  }
+
   async function unassignAssignment(assignment) {
     const job = assignment.workspace_jobs;
     const person = people.find(
@@ -263,6 +287,7 @@ export default function TeamManagementPage() {
                       : ""}
                   </p>
                 </div>
+                <button type="button" disabled={saving} onClick={() => updateAssignmentFee(assignment)} className="rounded-lg border border-white/15 px-3 py-2 text-xs text-white/70 hover:text-white disabled:opacity-40">Editar pagamento</button>
                 {["assigned","accepted"].includes(assignment.status) && (
                   <button
                     type="button"
