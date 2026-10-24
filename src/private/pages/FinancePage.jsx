@@ -65,7 +65,7 @@ export default function FinancePage() {
       setExpenses([]);
       setRecurringExpenses([]);
     } else {
-      setJobs(jobsResult.data || []);
+      setJobs((jobsResult.data || []).filter((job) => job.status !== "cancelled"));
       setAssignments(assignmentsResult.data || []);
       setExpenses(expensesResult.data || []);
       setRecurringExpenses(recurringExpensesResult.data || []);
