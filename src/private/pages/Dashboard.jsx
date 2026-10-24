@@ -30,10 +30,10 @@ export default function Dashboard() {
 
     if (loadError) {
       setError(loadError.message);
-      setJobs(jobsResult.data || []);
+      setJobs((jobsResult.data || []).filter((job) => job.status !== "cancelled"));
       setLeads(leadsResult.data || []);
     } else {
-      setJobs(jobsResult.data || []);
+      setJobs((jobsResult.data || []).filter((job) => job.status !== "cancelled"));
       setLeads(leadsResult.data || []);
     }
 
