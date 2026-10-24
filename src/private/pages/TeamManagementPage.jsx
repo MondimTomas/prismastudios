@@ -76,10 +76,31 @@ export default function TeamManagementPage() {
     else await load();
   }
 
+  // Os custos diretos são despesas EXTRA; pagamentos de colaboradores são contabilizados separadamente.
+  // Bloquear alterações ambíguas em vez de somar a mesma despesa duas vezes.
+  async function validateAssignmentCosts(jobId, newFee, newTravel, previousFee = 0, previousTravel = 0) {
+    const { data: job, error: jobError } = await supabase.from("workspace_jobs")
+      .select("id,costs,title").eq("id", jobId).single();
+    if (jobError || !job) throw new Error(jobError?.message || "Não foi possível verificar os custos do trabalho.");
+    const direct = Number(job.costs || 0);
+    const incoming = Number(newFee || 0) + Number(newTravel || 0);
+    const previous = Number(previousFee || 0) + Number(previousTravel || 0);
+    if (direct > 0 && incoming > 0 && (Math.abs(direct - incoming) < 0.01 || Math.abs(direct - previous) < 0.01)) {
+      throw new Error("Possível custo duplicado: este trabalho já tem " + direct.toFixed(2) + " € em custos diretos. Confirma e retira os pagamentos de colaboradores desse campo antes de atribuir ou editar a fee.");
+    }
+  }
+
   async function createAssignment(event) {
     event.preventDefault();
     setSaving(true);
     setError("");
+    try {
+      await validateAssignmentCosts(assignmentForm.job_id, assignmentForm.fee_amount, assignmentForm.travel_reimbursement);
+    } catch (validationError) {
+      setSaving(false);
+      setError(validationError.message);
+      return;
+    }
     const { data: userData } = await supabase.auth.getUser();
 
     const { error: insertError } = await supabase.from("collaborator_assignments").insert({
@@ -111,6 +132,13 @@ export default function TeamManagementPage() {
     }
     setSaving(true);
     setError("");
+    try {
+      await validateAssignmentCosts(assignment.job_id, amount, assignment.travel_reimbursement, assignment.fee_amount, assignment.travel_reimbursement);
+    } catch (validationError) {
+      setSaving(false);
+      setError(validationError.message);
+      return;
+    }
     const { data, error: updateError } = await supabase
       .from("collaborator_assignments")
       .update({ fee_amount: amount })
